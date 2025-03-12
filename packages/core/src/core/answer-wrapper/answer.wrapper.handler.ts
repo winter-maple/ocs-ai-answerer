@@ -79,8 +79,7 @@ export async function defaultAnswerWrapperHandler(
 					 */
 					Object.keys(wrapperData).forEach((key) => {
 						// searchParams.set 方法会自动编码，所以不需要 encodeURI: true
-						const resolved = JSON.parse(resolvePlaceHolder(JSON.stringify(wrapperData[key])));
-						url.searchParams.set(key, resolved);
+						url.searchParams.set(key, resolvePlaceHolder(wrapperData[key]));
 					});
 					// get 的请求数据为空
 					requestData = {};
@@ -103,8 +102,7 @@ export async function defaultAnswerWrapperHandler(
 							}
 						} else {
 							// 解析data数据
-							const resolved = JSON.parse(resolvePlaceHolder(JSON.stringify(wrapperData[key])));
-							Reflect.set(data, key, resolved);
+							Reflect.set(data, key, resolvePlaceHolder(wrapperData[key]));
 						}
 					});
 
@@ -178,17 +176,22 @@ export async function defaultAnswerWrapperHandler(
 	);
 
 	// 替换占位符
-	function resolvePlaceHolder(str: string, options?: { encodeURI?: boolean }) {
-		if (typeof str === 'string') {
-			const matches = str.match(/\${(.*?)}/g) || [];
+	function resolvePlaceHolder(data: any, options?: { encodeURI?: boolean }) {
+		if (typeof data === 'string') {
+			const matches = data.match(/\${(.*?)}/g) || [];
 			matches.forEach((placeHolder) => {
 				/** 获取占位符的值 */
 				const value: any = env[placeHolder.replace(/\${(.*)}/, '$1')];
-				str = str.replace(placeHolder, options?.encodeURI ? encodeURIComponent(value) : value);
+				data = data.replace(placeHolder, options?.encodeURI ? encodeURIComponent(value) : value);
 			});
+		} else if (typeof data === 'object') {
+			// 递归替换
+			const keys = Object.keys(data);
+			for (const key of keys) {
+				data[key] = resolvePlaceHolder(data[key], options);
+			}
 		}
-
-		return str;
+		return data;
 	}
 
 	return searchInfos;
