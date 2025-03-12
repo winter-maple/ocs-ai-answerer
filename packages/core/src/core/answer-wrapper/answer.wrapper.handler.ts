@@ -79,7 +79,8 @@ export async function defaultAnswerWrapperHandler(
 					 */
 					Object.keys(wrapperData).forEach((key) => {
 						// searchParams.set 方法会自动编码，所以不需要 encodeURI: true
-						url.searchParams.set(key, resolvePlaceHolder(wrapperData[key.toString()]));
+						const resolved = JSON.parse(resolvePlaceHolder(JSON.stringify(wrapperData[key])));
+						url.searchParams.set(key, resolved);
 					});
 					// get 的请求数据为空
 					requestData = {};
@@ -102,7 +103,8 @@ export async function defaultAnswerWrapperHandler(
 							}
 						} else {
 							// 解析data数据
-							Reflect.set(data, key, resolvePlaceHolder(wrapperData[key]));
+							const resolved = JSON.parse(resolvePlaceHolder(JSON.stringify(wrapperData[key])));
+							Reflect.set(data, key, resolved);
 						}
 					});
 
