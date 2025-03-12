@@ -119,6 +119,16 @@ export const CommonProject = Project.create({
 						['no-notify', '关闭系统通知']
 					]
 				},
+				notificationWebhooks: {
+					label: '通知回调',
+					attrs: {
+						title:
+							// eslint-disable-next-line no-template-curly-in-string
+							'发送系统通知时发送回调请求，用于专业开发人员对接其他通知系统。（每行填写一个URL，顺序发送GET请求，${message} 为消息占位符，可用于消息变量替换）'
+					},
+					tag: 'textarea',
+					defaultValue: ''
+				},
 				enableQuestionCaches: {
 					label: '题库缓存功能',
 					defaultValue: true,
@@ -594,6 +604,29 @@ export const CommonProject = Project.create({
 								important: this.cfg.notification === 'all',
 								silent: this.cfg.notification === 'only-notify'
 							});
+
+							const message = (opts?.extraTitle ? opts?.extraTitle + '：' : '') + content;
+
+							const webhooks = this.cfg.notificationWebhooks
+								.split('\n')
+								.map((i) => i.trim())
+								.filter(Boolean);
+
+							for (const webhook of webhooks) {
+								let resolved_webhook = webhook;
+								// eslint-disable-next-line no-template-curly-in-string
+								resolved_webhook = webhook.replace('${message}', encodeURIComponent(message));
+								request(resolved_webhook, {
+									method: 'get',
+									type: 'GM_xmlhttpRequest'
+								})
+									.then((result) => {
+										console.debug('通知回调成功', { webhook: resolved_webhook, result });
+									})
+									.catch((err) => {
+										console.debug('通知回调失败', { webhook: resolved_webhook, err });
+									});
+							}
 						}
 					}
 				};
