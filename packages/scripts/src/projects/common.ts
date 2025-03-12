@@ -44,6 +44,9 @@ const state = {
 			'zhs-xnk': (index: number) => {
 				document.querySelectorAll<HTMLElement>('.jobclassallnumber-div li[questionid]').item(index)?.click();
 			},
+			'zhs-smart': (index: number) => {
+				document.querySelectorAll<HTMLElement>('[role="treeitem"] .font-sec-style-node').item(index)?.click();
+			},
 			icve: (index: number) => {
 				document.querySelectorAll<HTMLElement>(`.sheet_nums [id*="sheetSeq"]`).item(index)?.click();
 			},

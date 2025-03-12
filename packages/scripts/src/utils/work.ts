@@ -28,6 +28,11 @@ export function commonWork(
 	 */
 	let checkFailed = false;
 
+	/**
+	 * 是否正在运行
+	 */
+	let running = false;
+
 	/** 显示答题控制按钮 */
 	const createControls = () => {
 		const { controlBtn, restartBtn, startBtn } = createWorkerControl({
@@ -54,7 +59,7 @@ export function commonWork(
 		const container = h(
 			'div',
 			{ style: { marginTop: '12px', display: 'flex' } },
-			worker?.isRunning ? [controlBtn, restartBtn] : [startBtn]
+			running ? [controlBtn, restartBtn] : [startBtn]
 		);
 
 		return { container, startBtn, restartBtn, controlBtn };
@@ -101,6 +106,7 @@ export function commonWork(
 
 	const start = async () => {
 		await options.beforeRunning?.();
+		running = true;
 		worker = options.workerProvider(workOptions);
 
 		if (worker) {
@@ -112,6 +118,7 @@ export function commonWork(
 		script.panel?.body?.replaceChildren(container, workResultPanel());
 
 		worker?.once('done', () => {
+			running = false;
 			controlBtn.disabled = true;
 		});
 	};

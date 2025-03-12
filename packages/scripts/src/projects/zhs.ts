@@ -37,8 +37,8 @@ interface ZHSProcessor {
 	getNext(opts: { next: boolean; restudy: boolean }): HTMLElement | undefined;
 	hideDialog(): void;
 	handleTestDialog(remotePage: RemotePage): void | Promise<void>;
-	switchPlaybackRate(rate: number, remotePage: RemotePage): void | Promise<void>;
-	switchLine(definition: 'line1bq' | 'line1gq', remotePage: RemotePage): void | Promise<void>;
+	switchPlaybackRate(rate: number, remotePage?: RemotePage): void | Promise<void>;
+	switchLine(definition: 'line1bq' | 'line1gq', remotePage?: RemotePage): void | Promise<void>;
 }
 
 const StudyVideoH5: ZHSProcessor = {
@@ -63,23 +63,33 @@ const StudyVideoH5: ZHSProcessor = {
 		}
 		return videoItems[0];
 	},
-	async switchPlaybackRate(rate: number, remotePage: RemotePage) {
+	async switchPlaybackRate(rate: number, remotePage?: RemotePage) {
 		const controlsBar = $el('.controlsBar');
 		const sl = $el('.speedList');
 		if (controlsBar && sl) {
 			controlsBar.style.display = 'block';
 			sl.style.display = 'block';
-			await remotePage.click(`.speedList [rate="${rate === 1 ? '1.0' : rate}"]`);
+			const selector = `.speedList [rate="${rate === 1 ? '1.0' : rate}"]`;
+			if (remotePage) {
+				await remotePage.click(selector);
+			} else {
+				document.querySelector<HTMLElement>(selector)?.click();
+			}
 		}
 	},
-	async switchLine(definition: 'line1bq' | 'line1gq', remotePage: RemotePage) {
+	async switchLine(definition: 'line1bq' | 'line1gq', remotePage?: RemotePage) {
 		const controlsBar = $el('.controlsBar');
 		const dl = $el('.definiLines');
 
 		if (controlsBar && dl) {
 			controlsBar.style.display = 'block';
 			dl.style.display = 'block';
-			await remotePage.click(`.definiLines .${definition}`);
+			const selector = `.definiLines .${definition}`;
+			if (remotePage) {
+				await remotePage.click(selector);
+			} else {
+				document.querySelector<HTMLElement>(selector)?.click();
+			}
 		}
 	},
 	hasJob: function () {
@@ -238,7 +248,7 @@ export const ZHSProject = Project.create({
 			name: '🖥️ 共享课-学习脚本',
 			matches: [
 				['共享课学习页面', 'studyvideoh5.zhihuishu.com'],
-				['新版页面', 'fusioncourseh5.zhihuishu.com']
+				['新版AI课页面', 'fusioncourseh5.zhihuishu.com']
 			],
 			namespace: 'zhs.gxk.study',
 			configs: {
@@ -400,16 +410,10 @@ export const ZHSProject = Project.create({
 
 				const processor = location.href.includes('fusioncourseh5') ? FusionCourseH5 : StudyVideoH5;
 
-				const finish = () => {
-					$modal.alert({
-						content: '检测到当前视频全部播放完毕，如果还有未完成的视频请刷新重试，或者打开复习模式。'
-					});
-				};
-
 				// 10秒后还没加载出来，则结束
 				setTimeout(() => {
 					if (processor.hasJob() === false) {
-						finish();
+						finishAlert();
 					}
 				}, 10 * 1000);
 
@@ -514,7 +518,7 @@ export const ZHSProject = Project.create({
 								({ next }) => study({ next })
 							);
 						} else {
-							finish();
+							finishAlert();
 						}
 					} else {
 						$message.warn({
@@ -600,6 +604,165 @@ export const ZHSProject = Project.create({
 				this.on('historychange', () => {
 					this.methods.work();
 				});
+			}
+		}),
+		'smart-study': new Script({
+			name: '🖥️ 智慧课程-学习脚本',
+			matches: [['智慧课程学习页面', 'smartcoursestudent.zhihuishu.com/learnPage']],
+			namespace: 'zhs.smart.study',
+			configs: {
+				notes: {
+					defaultValue: $ui.notes([
+						'作业请大家观看完视频后手动打开。',
+						'不要最小化浏览器，可能导致脚本暂停。',
+						'任意选择一个章节，脚本会自动往下学“必学”课程。'
+					]).outerHTML
+				},
+				restudy: restudy,
+				volume: volume,
+				definition: definition,
+				playbackRate: {
+					label: '视频倍速',
+					tag: 'select',
+					defaultValue: 1,
+					options: [
+						['1', '1 x'],
+						['1.25', '1.25 x'],
+						['1.5', '1.5 x']
+					]
+				}
+			},
+			async oncomplete() {
+				// 置顶当前脚本
+				CommonProject.scripts.render.methods.pin(this);
+
+				const getInfos = () => Array.from(document.querySelectorAll<HTMLElement>('.section-item-collapse-info'));
+				const getChapterName = () => document.querySelector('.point-title-text')?.textContent || '未知';
+				const getNext = () => {
+					const infos = getInfos();
+					let start = false;
+					for (let index = 0; index < infos.length; index++) {
+						const info = infos[index];
+						if (start) {
+							const text = info.querySelector('.collapse-info-progress .progress-text')?.textContent || '';
+							const [progress, total] = text
+								.replace('必学', '')
+								.trim()
+								.split('/')
+								.map((s) => parseInt(s));
+							if (progress < total) {
+								return info;
+							}
+						}
+						if (info.classList.contains('active')) {
+							if (this.cfg.restudy) {
+								return infos[index + 1];
+							} else {
+								start = true;
+							}
+						}
+					}
+				};
+
+				// 监听音量
+				this.onConfigChange('volume', (curr) => {
+					state.study.currentMedia && (state.study.currentMedia.volume = curr);
+				});
+
+				// 监听速度
+				this.onConfigChange('playbackRate', (curr) => {
+					if (typeof curr === 'string') {
+						this.cfg.playbackRate = parseFloat(curr);
+					}
+					StudyVideoH5.switchPlaybackRate(curr);
+				});
+
+				// 监听清晰度
+				this.onConfigChange('definition', (curr) => {
+					StudyVideoH5.switchLine(curr);
+				});
+
+				await waitForMedia({ timeout: 10 * 1000 });
+
+				const set = async () => {
+					// 上面操作会导致元素刷新，这里重新获取视频
+					try {
+						// 设置清晰度
+						await StudyVideoH5.switchLine(this.cfg.definition || 'line1bq');
+						await $.sleep(1000);
+						// 设置播放速度
+						await StudyVideoH5.switchPlaybackRate(this.cfg.playbackRate);
+						await $.sleep(1000);
+						const media = await waitForMedia({ timeout: 10 * 1000 });
+						await $.sleep(1000);
+						state.study.currentMedia = media;
+						if (media) {
+							// 如果已经播放完了，则重置视频进度
+							media.currentTime = 1;
+							// 音量
+							media.volume = this.cfg.volume;
+						}
+						return state.study.currentMedia;
+					} catch (e) {
+						$console.log('视频加载失败，请尝试刷新页面！：' + e);
+						$message.error({ content: '视频加载失败，请尝试刷新页面！：' + e, duration: 0 });
+					}
+				};
+
+				const video = await set();
+				if (!video) {
+					return;
+				}
+
+				playMedia(() => video?.play()).then(() => {
+					$message.info({ content: '正在学习：' + getChapterName() });
+				});
+
+				video.onpause = async () => {
+					if (!video?.ended && state.study.stop === false) {
+						await $.sleep(1000);
+						video?.play();
+					}
+				};
+
+				video.onended = () => {
+					const next = getNext();
+					if (next) {
+						next.click();
+					} else {
+						finishAlert();
+					}
+				};
+			}
+		}),
+		'smart-work': new Script({
+			name: '✍️ 智慧课程-作业脚本',
+			matches: [['智慧课程作业页面', 'smartcourseexam.zhihuishu.com/ReviewExam']],
+			namespace: 'zhs.smart.work',
+			configs: {
+				notes: {
+					defaultValue: $ui.notes([
+						'自动答题前请在 “通用-全局设置” 中设置题库配置。',
+						'可以搭配 “通用-在线搜题” 一起使用。',
+						'⚠️开始前请仔细阅读以下事项：⚠️',
+						'⚠️-如果未开始答题，请尝试刷新页面。',
+						['⚠️-答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。']
+					]).outerHTML
+				}
+			},
+			async oncomplete() {
+				// 检查是否为软件环境
+				const remotePage = await RemotePlaywright.getCurrentPage();
+				// 检查是否为软件环境
+				if (!remotePage) {
+					return $playwright.showError();
+				}
+				$message.warn({ content: '即将开始答题，答题完毕之前请勿操作页面！', duration: 0 });
+				setTimeout(() => {
+					commonWork(this, {
+						workerProvider: (opts) => smartWork(remotePage, opts)
+					});
+				}, 3000);
 			}
 		}),
 		'xnk-study': new Script({
@@ -1174,9 +1337,146 @@ function xnkWork({ answererWrappers, period, thread, answerSeparators, answerMat
 
 		$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
 		worker.emit('done');
+		// 答题完成后，题库选项点击才会同步题目，否则会导致题目错乱
 		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'zhs-xnk';
 	})();
 
+	return worker;
+}
+
+/**
+ * 智慧课程的作业
+ */
+function smartWork(
+	remotePage: RemotePage,
+	{ answererWrappers, period, thread, answerSeparators, answerMatchMode }: CommonWorkOptions
+) {
+	$message.info({ content: '开始作业' });
+
+	CommonProject.scripts.workResults.methods.init();
+
+	const titleTransform = (titles: (HTMLElement | undefined)[]) => {
+		return titles
+			.filter((t) => t?.innerText)
+			.map((t) => (t ? optimizationElementWithImage(t).innerText : ''))
+			.join(',');
+	};
+
+	const workResults: SimplifyWorkResult[] = [];
+	let totalQuestionCount = 0;
+	let requestedCount = 0;
+	let resolvedCount = 0;
+
+	const worker = new OCSWorker({
+		root: '.questionContent',
+		elements: {
+			title: '.questionName .centent-pre',
+			options: '.radio-view li.clearfix, .checkbox-views label.el-checkbox'
+		},
+		thread: thread ?? 1,
+		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
+		answerMatchMode: answerMatchMode,
+		/** 默认搜题方法构造器 */
+		answerer: (elements, ctx) => {
+			const title = titleTransform(elements.title);
+			if (title) {
+				return CommonProject.scripts.apps.methods.searchAnswerInCaches(title, async () => {
+					await $.sleep((period ?? 3) * 1000);
+					return defaultAnswerWrapperHandler(answererWrappers, {
+						type: ctx.type || 'unknown',
+						title,
+						options: ctx.elements.options.map((o) => o.innerText).join('\n')
+					});
+				});
+			} else {
+				throw new Error('题目为空，请查看题目是否为空，或者忽略此题');
+			}
+		},
+		work: {
+			type(ctx) {
+				const type = ctx.elements.title[0]?.parentElement?.querySelector('.letterSortNum')?.textContent;
+				if (type?.includes('单选题')) {
+					return 'single';
+				} else if (type?.includes('多选题')) {
+					return 'multiple';
+				} else if (type?.includes('判断题')) {
+					return 'judgement';
+				} else if (type?.includes('填空题')) {
+					return 'completion';
+				} else {
+					return undefined;
+				}
+			},
+			/** 自定义处理器 */
+			async handler(type, answer, option, ctx) {
+				if (type === 'judgement' || type === 'single' || type === 'multiple') {
+					let label;
+					if (type === 'multiple') {
+						label = option.querySelector('.el-checkbox__input:not(.is-checked)');
+					} else {
+						label = option.querySelector('i.iconfont:not(.checkedIcon)');
+					}
+					if (label) {
+						await remotePage.click(label);
+						await $.sleep(200);
+					}
+				}
+			}
+		},
+
+		/**
+		 * 作业都是一题一题做的，不像其他自动答题一样可以获取全部试卷内容。
+		 * 所以只能根据自定义的状态进行搜索结果的显示。
+		 */
+		onResultsUpdate(current, _, res) {
+			if (current.result) {
+				workResults.push(...simplifyWorkResult([current], titleTransform));
+				CommonProject.scripts.workResults.methods.setResults(workResults);
+				totalQuestionCount++;
+				requestedCount++;
+				resolvedCount++;
+			}
+
+			if (current.result?.finish) {
+				CommonProject.scripts.apps.methods.addQuestionCacheFromWorkResult(
+					simplifyWorkResult([current], titleTransform)
+				);
+			}
+			CommonProject.scripts.workResults.methods.updateWorkState({
+				totalQuestionCount,
+				requestedCount,
+				resolvedCount
+			});
+		}
+	});
+
+	const getNextBtn = () => document.querySelector<HTMLElement>('.next-topic.next-t');
+	let next = getNextBtn();
+
+	(async () => {
+		// 从第一题开始
+		const first = document.querySelector('[role="treeitem"] .font-sec-style-node');
+		if (first) {
+			await remotePage.click(first);
+			await $.sleep(3000);
+		}
+
+		while (next && worker.isClose === false) {
+			await worker.doWork({ enable_debug: true });
+			next = getNextBtn();
+			if (next) {
+				await $.sleep(1000);
+				await remotePage.click(next);
+				// 等待题目加载
+				await $.sleep(1000);
+			}
+		}
+
+		$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+		worker.emit('done');
+		// 答题完成后，题库选项点击才会同步题目，否则会导致题目错乱
+		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'zhs-smart';
+	})();
 	return worker;
 }
 
@@ -1234,4 +1534,10 @@ function closeDialogRead() {
 	if (div) {
 		div.style.display = 'none';
 	}
+}
+
+function finishAlert() {
+	$modal.alert({
+		content: '检测到当前视频全部播放完毕，如果还有未完成的视频请刷新重试，或者打开复习模式。'
+	});
 }
