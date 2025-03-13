@@ -84,11 +84,15 @@ const StudyVideoH5: ZHSProcessor = {
 		if (controlsBar && dl) {
 			controlsBar.style.display = 'block';
 			dl.style.display = 'block';
-			const selector = `.definiLines .${definition}`;
-			if (remotePage) {
-				await remotePage.click(selector);
-			} else {
-				document.querySelector<HTMLElement>(selector)?.click();
+			// :not(.active) ： 如果已经是激活状态则不点击
+			const selector = `.definiLines .${definition}:not(.active)`;
+			const el = document.querySelector<HTMLElement>(selector);
+			if (el) {
+				if (remotePage) {
+					await remotePage.click(selector);
+				} else {
+					el.click();
+				}
 			}
 		}
 	},
@@ -632,107 +636,143 @@ export const ZHSProject = Project.create({
 					]
 				}
 			},
-			async oncomplete() {
-				// 置顶当前脚本
-				CommonProject.scripts.render.methods.pin(this);
-
-				const getInfos = () => Array.from(document.querySelectorAll<HTMLElement>('.section-item-collapse-info'));
-				const getChapterName = () => document.querySelector('.point-title-text')?.textContent || '未知';
-				const getNext = () => {
-					const infos = getInfos();
-					let start = false;
-					for (let index = 0; index < infos.length; index++) {
-						const info = infos[index];
-						if (start) {
-							const text = info.querySelector('.collapse-info-progress .progress-text')?.textContent || '';
-							const [progress, total] = text
-								.replace('必学', '')
-								.trim()
-								.split('/')
-								.map((s) => parseInt(s));
-							if (progress < total) {
-								return info;
-							}
+			methods() {
+				return {
+					start: async () => {
+						if (location.href.includes('smartcoursestudent.zhihuishu.com/learnPage') === false) {
+							$message.info({ content: '请点击任意章节开始进行自动学习' });
+							return;
 						}
-						if (info.classList.contains('active')) {
-							if (this.cfg.restudy) {
-								return infos[index + 1];
+						// 置顶当前脚本
+						CommonProject.scripts.render.methods.pin(this);
+
+						const getInfos = () => Array.from(document.querySelectorAll<HTMLElement>('.section-item-collapse-info'));
+						const getChapterName = () => document.querySelector('.point-title-text')?.textContent || '未知';
+						const getNext = () => {
+							const infos = getInfos();
+							let start = false;
+							for (let index = 0; index < infos.length; index++) {
+								const info = infos[index];
+								if (start) {
+									const text = info.querySelector('.collapse-info-progress .progress-text')?.textContent || '';
+									const [progress, total] = text
+										.replace('必学', '')
+										.trim()
+										.split('/')
+										.map((s) => parseInt(s));
+									if (progress < total) {
+										return info;
+									}
+								}
+								if (info.classList.contains('active')) {
+									if (this.cfg.restudy) {
+										return infos[index + 1];
+									} else {
+										start = true;
+									}
+								}
+							}
+						};
+
+						// 监听音量
+						this.onConfigChange('volume', (curr) => {
+							state.study.currentMedia && (state.study.currentMedia.volume = curr);
+						});
+
+						// 监听速度
+						this.onConfigChange('playbackRate', (curr) => {
+							if (typeof curr === 'string') {
+								this.cfg.playbackRate = parseFloat(curr);
+							}
+							StudyVideoH5.switchPlaybackRate(curr);
+						});
+
+						// 监听清晰度
+						this.onConfigChange('definition', (curr) => {
+							StudyVideoH5.switchLine(curr);
+						});
+
+						await $.sleep(5000);
+
+						try {
+							console.log('media', await waitForMedia({ timeout: 5 * 1000, filter: (m) => m.src.length !== 0 }));
+						} catch {
+							const msg = '未找到学习视频，即将自动下一节！';
+							$message.error({ content: msg });
+							$console.error(msg);
+							await $.sleep(3000);
+							const next = getNext();
+							if (next) {
+								next.click();
 							} else {
-								start = true;
+								finishAlert();
 							}
+							return;
 						}
+
+						const set = async () => {
+							// 上面操作会导致元素刷新，这里重新获取视频
+							try {
+								// 设置清晰度
+								await StudyVideoH5.switchLine(this.cfg.definition || 'line1bq');
+								await $.sleep(1000);
+								// 设置播放速度
+								await StudyVideoH5.switchPlaybackRate(this.cfg.playbackRate);
+								await $.sleep(1000);
+								const media = await waitForMedia({ timeout: 5 * 1000, filter: (m) => m.src.length !== 0 });
+								await $.sleep(1000);
+								state.study.currentMedia = media;
+								if (media) {
+									// 如果已经播放完了，则重置视频进度
+									media.currentTime = 1;
+									// 音量
+									media.volume = this.cfg.volume;
+								}
+								return state.study.currentMedia;
+							} catch (e) {
+								$console.log('视频加载失败，请尝试刷新页面！：' + e);
+								$message.error({ content: '视频加载失败，请尝试刷新页面！：' + e, duration: 0 });
+							}
+						};
+
+						const video = await set();
+						if (!video) {
+							return;
+						}
+
+						playMedia(() => video?.play()).then(() => {
+							const cn = getChapterName();
+							$message.info({ content: '正在学习：' + cn });
+							$console.log('正在学习：' + cn);
+						});
+
+						video.onpause = async () => {
+							if (!video?.ended && state.study.stop === false) {
+								await $.sleep(1000);
+								video?.play();
+							}
+						};
+
+						video.onended = async () => {
+							$message.info({ content: '即将自动跳转下一节' });
+							await $.sleep(3000);
+							const next = getNext();
+							if (next) {
+								next.click();
+							} else {
+								finishAlert();
+							}
+						};
 					}
 				};
-
-				// 监听音量
-				this.onConfigChange('volume', (curr) => {
-					state.study.currentMedia && (state.study.currentMedia.volume = curr);
-				});
-
-				// 监听速度
-				this.onConfigChange('playbackRate', (curr) => {
-					if (typeof curr === 'string') {
-						this.cfg.playbackRate = parseFloat(curr);
-					}
-					StudyVideoH5.switchPlaybackRate(curr);
-				});
-
-				// 监听清晰度
-				this.onConfigChange('definition', (curr) => {
-					StudyVideoH5.switchLine(curr);
-				});
-
-				await waitForMedia({ timeout: 10 * 1000 });
-
-				const set = async () => {
-					// 上面操作会导致元素刷新，这里重新获取视频
-					try {
-						// 设置清晰度
-						await StudyVideoH5.switchLine(this.cfg.definition || 'line1bq');
-						await $.sleep(1000);
-						// 设置播放速度
-						await StudyVideoH5.switchPlaybackRate(this.cfg.playbackRate);
-						await $.sleep(1000);
-						const media = await waitForMedia({ timeout: 10 * 1000 });
-						await $.sleep(1000);
-						state.study.currentMedia = media;
-						if (media) {
-							// 如果已经播放完了，则重置视频进度
-							media.currentTime = 1;
-							// 音量
-							media.volume = this.cfg.volume;
-						}
-						return state.study.currentMedia;
-					} catch (e) {
-						$console.log('视频加载失败，请尝试刷新页面！：' + e);
-						$message.error({ content: '视频加载失败，请尝试刷新页面！：' + e, duration: 0 });
-					}
-				};
-
-				const video = await set();
-				if (!video) {
-					return;
+			},
+			oncomplete() {
+				this.methods.start();
+			},
+			onhistorychange(type, ...args) {
+				if (type === 'push') {
+					this.methods.start();
 				}
-
-				playMedia(() => video?.play()).then(() => {
-					$message.info({ content: '正在学习：' + getChapterName() });
-				});
-
-				video.onpause = async () => {
-					if (!video?.ended && state.study.stop === false) {
-						await $.sleep(1000);
-						video?.play();
-					}
-				};
-
-				video.onended = () => {
-					const next = getNext();
-					if (next) {
-						next.click();
-					} else {
-						finishAlert();
-					}
-				};
 			}
 		}),
 		'smart-work': new Script({

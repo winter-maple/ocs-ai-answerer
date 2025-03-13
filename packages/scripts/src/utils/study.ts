@@ -17,6 +17,7 @@ export async function waitForMedia(options?: {
 	 */
 	root?: HTMLElement | Document;
 	timeout?: number;
+	filter?: (video: HTMLVideoElement | HTMLAudioElement) => boolean;
 }) {
 	const res = await Promise.race([
 		new Promise<HTMLVideoElement | HTMLAudioElement>((resolve, reject) => {
@@ -24,7 +25,7 @@ export async function waitForMedia(options?: {
 				const video = (options?.root || document).querySelector<HTMLVideoElement | HTMLAudioElement>(
 					`${options?.videoSelector || 'video'},${options?.audioSelector || 'audio'}`
 				);
-				if (video) {
+				if (video && (!options?.filter || options.filter(video))) {
 					clearInterval(interval);
 					resolve(video);
 				}
