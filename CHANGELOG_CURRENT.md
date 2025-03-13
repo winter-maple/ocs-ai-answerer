@@ -1,9 +1,9 @@
-## [4.9.52](https://github.com/ocsjs/ocsjs/compare/4.9.51...4.9.52) (2025-03-12)
+## [4.9.54](https://github.com/ocsjs/ocsjs/compare/4.9.52...4.9.54) (2025-03-13)
 
 
 ### Bug Fixes
 
-* 修复 4.9.51 版本题库配置解析问题 ([b3d3e32](https://github.com/ocsjs/ocsjs/commit/b3d3e32e8b61f1bef7e7b94d631eccd47838a6dc))
+* 优化智慧树智慧课程视频检测，修复智慧树智慧课程检测不到任务点问题 ([2f3777d](https://github.com/ocsjs/ocsjs/commit/2f3777d4d072da3163ed21cb630488f3fd89ed61))
 
 
 
