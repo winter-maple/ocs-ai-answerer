@@ -98,14 +98,16 @@ const state = {
 type VideoQuizStrategy = 'random' | 'ignore';
 
 type Attachment = {
-	/** 只有当 module 为 音视频时才会有这个属性 */
+	/** 只有当 module 为 音视频（并且已经播放完成）时才会有这个属性 */
 	isPassed: boolean | undefined;
-	/** 是否为任务点 */
+	/** 是否为任务点（音视频播放完成后此属性不存在） */
 	job: boolean | undefined;
-	/** 这里注意，如果当前章节测试不是任务点，则没有 jobid */
+	/** 这里注意，如果当前章节测试不是任务点，则没有 jobid 或者未空字符串 */
 	jobid?: string;
 	property: {
 		mid: string;
+		/** 任务点id，固定存在 */
+		_jobid: string;
 		module: 'insertbook' | 'insertdoc' | 'insertflash' | 'work' | 'insertaudio' | 'insertvideo';
 		name?: string;
 		author?: string;
@@ -208,6 +210,14 @@ export const CXProject = Project.create({
 				restudy: {
 					label: '复习模式',
 					attrs: { title: '已经完成的视频继续学习，并从当前的章节往下开始学习', type: 'checkbox' },
+					defaultValue: false
+				},
+				forceLearn: {
+					label: '强制学习',
+					attrs: {
+						title: '视频一般分为：非任务点、任务点、和已完成任务点，当遇到“非任务点”时需要开启此选项才会进行学习',
+						type: 'checkbox'
+					},
 					defaultValue: false
 				},
 				backToFirstWhenFinish: {
@@ -1093,14 +1103,11 @@ function rateHack() {
 /**
  * cx 任务学习
  */
-export async function study(opts: {
-	restudy: boolean;
-	playbackRate: number;
-	volume: number;
-	videoQuizStrategy: VideoQuizStrategy;
-	backToFirstWhenFinish: boolean;
-	workOptions: CommonWorkOptions;
-}) {
+export async function study(
+	opts: typeof CXProject.scripts.study.cfg & {
+		workOptions: CommonWorkOptions;
+	}
+) {
 	await $.sleep(3000);
 
 	const searchedJobs: Job[] = [];
@@ -1260,12 +1267,8 @@ function searchIFrame(root: Document) {
  * 搜索任务点
  */
 function searchJob(
-	opts: {
-		restudy: boolean;
-		playbackRate: number;
-		volume: number;
+	opts: typeof CXProject.scripts.study.cfg & {
 		workOptions: CommonWorkOptions;
-		videoQuizStrategy: VideoQuizStrategy;
 	},
 	searchedJobs: Job[]
 ): Job | undefined {
@@ -1296,16 +1299,27 @@ function searchJob(
 				// 带音频的PPT，套了两层iframe
 				(win.frameElement as HTMLIFrameElement)?.contentWindow?.parent.frameElement?.getAttribute('data') ||
 				'{}';
+			const frame_data = JSON.parse(frame_data_str);
+			const target_jobid = frame_data.jobid || frame_data._jobid;
+			if (!target_jobid) {
+				return;
+			}
 
 			// 获取任务点数据
-			const attachment: Attachment | undefined = (knowCardWin.attachments as any[]).find(
-				(attachment) => String(attachment.jobid) === String(JSON.parse(frame_data_str).jobid)
-			);
+			const attachment: Attachment | undefined = (knowCardWin.attachments as any[]).find((attachment) => {
+				const attachment_jobid = attachment.jobid || attachment.property._jobid;
+				if (!attachment_jobid) {
+					return false;
+				}
+				return String(attachment_jobid) === String(target_jobid);
+			});
 
 			// 任务点去重
 			if (attachment && searchedJobs.find((job) => job.mid === attachment.property.mid) === undefined) {
 				const { name, title, bookname, author } = attachment.property;
 				const jobName = name || title || (bookname ? bookname + author : undefined) || '未知任务';
+
+				const work_type = attachment.job ? 'job' : attachment.isPassed ? 'finished' : 'not-job';
 
 				let func: { (): Promise<any> } | undefined;
 
@@ -1315,10 +1329,23 @@ function searchJob(
 						$message.warn({ content: msg, duration: 10 });
 						$console.warn(msg);
 					} else {
-						// 重复学习，或者未完成
-						if (opts.restudy || attachment.job) {
+						if (
+							// 未完成
+							work_type === 'job' ||
+							// 重复学习
+							(work_type === 'finished' && opts.restudy) ||
+							// 强制学习
+							(work_type === 'not-job' && opts.forceLearn)
+						) {
 							func = () => {
-								const msg = `即将${opts.restudy ? '重新' : ''}播放 : ` + jobName;
+								const msg =
+									`即将${
+										work_type === 'finished' && opts.restudy
+											? '重新'
+											: work_type === 'not-job' && opts.forceLearn
+											? '强制'
+											: ''
+									}播放 : ` + jobName;
 								$message.info({ content: msg });
 								$console.log(msg);
 								return JobRunner.media(opts, win.document);
@@ -1339,7 +1366,12 @@ function searchJob(
 							$message.success({ content: msg });
 							$console.log(msg);
 						} else {
-							if (attachment.job || CommonProject.scripts.settings.cfg['work-when-no-job']) {
+							if (
+								// 未完成
+								work_type === 'job' ||
+								// / 强制学习
+								(work_type === 'not-job' && CommonProject.scripts.settings.cfg['work-when-no-job'])
+							) {
 								func = () => {
 									const msg = `开始答题 : ` + jobName;
 									$message.info({ content: msg });
@@ -1347,7 +1379,7 @@ function searchJob(
 									return JobRunner.chapter(root, opts.workOptions);
 								};
 							}
-							if (attachment.job === undefined && CommonProject.scripts.settings.cfg['work-when-no-job'] === false) {
+							if (work_type === 'not-job' && CommonProject.scripts.settings.cfg['work-when-no-job'] === false) {
 								const msg = `当前作业 ${jobName} 不是任务点，但待完成，如需开启自动答题请前往：通用-全局设置，开启强制答题。`;
 								$message.warn({ content: msg });
 								$console.warn(msg);
@@ -1400,8 +1432,6 @@ function searchJob(
 
 				return job;
 			}
-		} else {
-			return undefined;
 		}
 	};
 
