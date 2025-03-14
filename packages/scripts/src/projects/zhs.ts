@@ -619,7 +619,8 @@ export const ZHSProject = Project.create({
 					defaultValue: $ui.notes([
 						'作业请大家观看完视频后手动打开。',
 						'不要最小化浏览器，可能导致脚本暂停。',
-						'任意选择一个章节，脚本会自动往下学“必学”课程。'
+						'任意选择一个章节，脚本会自动往下学“必学”课程。',
+						'掌握度自动答题请学习完成后自行手动点击进入'
 					]).outerHTML
 				},
 				restudy: restudy,
