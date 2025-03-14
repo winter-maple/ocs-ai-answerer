@@ -777,7 +777,10 @@ export const ZHSProject = Project.create({
 		}),
 		'smart-work': new Script({
 			name: '✍️ 智慧课程-作业脚本',
-			matches: [['智慧课程作业页面', 'smartcourseexam.zhihuishu.com/ReviewExam']],
+			matches: [
+				['智慧课程作业页面', 'smartcourseexam.zhihuishu.com/ReviewExam'],
+				['智慧课程掌握提升页面', 'studentexamcomh5.zhihuishu.com/studentReviewTestOrExam']
+			],
 			namespace: 'zhs.smart.work',
 			configs: {
 				notes: {
@@ -790,19 +793,40 @@ export const ZHSProject = Project.create({
 					]).outerHTML
 				}
 			},
-			async oncomplete() {
-				// 检查是否为软件环境
-				const remotePage = await RemotePlaywright.getCurrentPage();
-				// 检查是否为软件环境
-				if (!remotePage) {
-					return $playwright.showError();
+			methods() {
+				return {
+					start: async () => {
+						await $.sleep(3000);
+
+						// // 检查是否为软件环境
+						// const remotePage = await RemotePlaywright.getCurrentPage();
+						// // 检查是否为软件环境
+						// if (!remotePage) {
+						// 	return $playwright.showError();
+						// }
+						$message.warn({ content: '即将开始答题，答题完毕之前请勿操作页面！', duration: 0 });
+						setTimeout(() => {
+							// $message.warn({ content: '已将面板移至窗口边，避免阻挡脚本操作点击！', duration: 10 });
+							// // 将面板移动至左侧顶部，防止挡住软件登录
+							// if ($.isInTopWindow()) {
+							// 	$render.moveToEdge();
+							// }
+
+							// 目前暂时不需要软件辅助
+							commonWork(this, {
+								workerProvider: (opts) => smartWork(undefined, opts)
+							});
+						}, 3000);
+					}
+				};
+			},
+			oncomplete() {
+				this.methods.start();
+			},
+			onhistorychange(type, ...args) {
+				if (type === 'push') {
+					this.methods.start();
 				}
-				$message.warn({ content: '即将开始答题，答题完毕之前请勿操作页面！', duration: 0 });
-				setTimeout(() => {
-					commonWork(this, {
-						workerProvider: (opts) => smartWork(remotePage, opts)
-					});
-				}, 3000);
 			}
 		}),
 		'xnk-study': new Script({
@@ -1388,7 +1412,7 @@ function xnkWork({ answererWrappers, period, thread, answerSeparators, answerMat
  * 智慧课程的作业
  */
 function smartWork(
-	remotePage: RemotePage,
+	remotePage: RemotePage | undefined,
 	{ answererWrappers, period, thread, answerSeparators, answerMatchMode }: CommonWorkOptions
 ) {
 	$message.info({ content: '开始作业' });
@@ -1450,14 +1474,18 @@ function smartWork(
 			/** 自定义处理器 */
 			async handler(type, answer, option, ctx) {
 				if (type === 'judgement' || type === 'single' || type === 'multiple') {
-					let label;
+					let label: HTMLElement | null = null;
 					if (type === 'multiple') {
-						label = option.querySelector('.el-checkbox__input:not(.is-checked)');
+						label = option.querySelector<HTMLElement>('.el-checkbox__input:not(.is-checked)');
 					} else {
-						label = option.querySelector('i.iconfont:not(.checkedIcon)');
+						label = option.querySelector<HTMLElement>('i.iconfont:not(.checkedIcon)');
 					}
 					if (label) {
-						await remotePage.click(label);
+						if (remotePage) {
+							await remotePage.click(label);
+						} else {
+							label.click();
+						}
 						await $.sleep(200);
 					}
 				}
@@ -1495,9 +1523,10 @@ function smartWork(
 
 	(async () => {
 		// 从第一题开始
-		const first = document.querySelector('[role="treeitem"] .font-sec-style-node');
+		const first = document.querySelector<HTMLElement>('[role="treeitem"] .font-sec-style-node');
 		if (first) {
-			await remotePage.click(first);
+			if (remotePage) await remotePage.click(first);
+			else first.click();
 			await $.sleep(3000);
 		}
 
@@ -1506,7 +1535,8 @@ function smartWork(
 			next = getNextBtn();
 			if (next) {
 				await $.sleep(1000);
-				await remotePage.click(next);
+				if (remotePage) await remotePage.click(next);
+				else next.click();
 				// 等待题目加载
 				await $.sleep(1000);
 			}
