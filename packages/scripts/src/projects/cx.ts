@@ -273,7 +273,7 @@ export const CXProject = Project.create({
 				},
 				enableHyperlink: {
 					label: '链接任务自动完成',
-					attrs: { type: 'checkbox', title: '开启：章节测试自动答题' },
+					attrs: { type: 'checkbox', title: '开启：链接任务自动完成' },
 					defaultValue: true
 				}
 			},
