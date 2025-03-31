@@ -255,165 +255,170 @@ export const CommonProject = Project.create({
 
 													const value = textarea.value;
 
-													if (value) {
-														if (
-															value.includes('adapter-service/search') &&
-															(select.value === 'TikuAdapter') === false
-														) {
-															$modal.alert({
-																content: h('div', [
-																	'检测到您可能正在使用 ',
-																	h(
-																		'a',
-																		{ href: 'https://github.com/DokiDoki1103/tikuAdapter#readme' },
-																		'TikuAdapter 题库'
-																	),
-																	'，但是您选择的解析器不是 TikuAdapter，请选择 TikuAdapter 解析器，并填写接口地址即可，例如：http://localhost:8060/adapter-service/search，或者忽略此警告。'
-																]),
-																confirmButtonText: '切换至 TikuAdapter 解析器，并识别接口地址',
-																onConfirm() {
-																	const origin =
-																		textarea.value.match(/http:\/\/(.+)\/adapter-service\/search/)?.[1] || '';
-																	textarea.value = `http://${origin}/adapter-service/search`;
-																	select.value = 'TikuAdapter';
-																}
+													if (!value) {
+														$modal.alert({
+															content: h('div', '不能为空！')
+														});
+														return;
+													}
+													if (value.includes('adapter-service/search') && (select.value === 'TikuAdapter') === false) {
+														$modal.alert({
+															content: h('div', [
+																'检测到您可能正在使用 ',
+																h(
+																	'a',
+																	{ href: 'https://github.com/DokiDoki1103/tikuAdapter#readme' },
+																	'TikuAdapter 题库'
+																),
+																'，但是您选择的解析器不是 TikuAdapter，请选择 TikuAdapter 解析器，并填写接口地址即可，例如：http://localhost:8060/adapter-service/search，或者忽略此警告。'
+															]),
+															confirmButtonText: '切换至 TikuAdapter 解析器，并识别接口地址',
+															onConfirm() {
+																const origin =
+																	textarea.value.match(/http:\/\/(.+)\/adapter-service\/search/)?.[1] || '';
+																textarea.value = `http://${origin}/adapter-service/search`;
+																select.value = 'TikuAdapter';
+															}
+														});
+														return;
+													}
+
+													try {
+														const awsResult: AnswererWrapper[] = [];
+														if (select.value === 'TikuAdapter') {
+															if (value.startsWith('http') === false) {
+																$modal.alert({
+																	content: h('div', [
+																		'格式错误，TikuAdapter解析器只能解析 url 链接，请重新输入！或者查看：',
+																		h(
+																			'a',
+																			{ href: 'https://github.com/DokiDoki1103/tikuAdapter#readme' },
+																			'https://github.com/DokiDoki1103/tikuAdapter#readme'
+																		)
+																	])
+																});
+																return;
+															}
+															select.value = '默认';
+															awsResult.push({
+																name: 'TikuAdapter题库',
+																url: value,
+																homepage: 'https://github.com/DokiDoki1103/tikuAdapter',
+																method: 'post',
+																type: 'GM_xmlhttpRequest',
+																contentType: 'json',
+																headers: {},
+																data: {
+																	// eslint-disable-next-line no-template-curly-in-string
+																	question: '${title}',
+																	options: {
+																		handler: "return (env)=>env.options?.split('\\n')"
+																	},
+																	type: {
+																		handler:
+																			" return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : undefined"
+																	}
+																},
+																handler: "return (res)=>res.answer.allAnswer.map(i=>([res.question,i.join('#')]))"
 															});
+														} else {
+															const contents = value
+																.split('###')
+																.map((i) => i.trim())
+																.filter(Boolean);
+															for (const content of contents) {
+																awsResult.push(...(await AnswerWrapperParser.from(content)));
+															}
+														}
+
+														// 为空判断
+														if (awsResult.length === 0) {
+															$modal.alert({ content: '题库配置不能为空，请重新配置。' });
+															return;
+														}
+														// 判断新旧是否一致，如果一致则提示
+														if (
+															JSON.stringify(CommonProject.scripts.settings.cfg.answererWrappers) ===
+															JSON.stringify(awsResult)
+														) {
+															$modal.alert({ content: h('div', ['题库配置没有变化，请重新配置！']) });
 															return;
 														}
 
-														try {
-															const awsResult: AnswererWrapper[] = [];
-															if (select.value === 'TikuAdapter') {
-																if (value.startsWith('http') === false) {
-																	$modal.alert({
-																		content: h('div', [
-																			'格式错误，TikuAdapter解析器只能解析 url 链接，请重新输入！或者查看：',
-																			h(
-																				'a',
-																				{ href: 'https://github.com/DokiDoki1103/tikuAdapter#readme' },
-																				'https://github.com/DokiDoki1103/tikuAdapter#readme'
-																			)
-																		])
-																	});
-																	return;
+														CommonProject.scripts.settings.cfg.answererWrappers = awsResult;
+														this.value = '当前有' + awsResult.length + '个可用题库';
+														$modal.confirm({
+															width: 600,
+															content: h('div', [
+																h('div', [
+																	'🎉 配置成功，',
+																	h('b', ' 刷新网页后 '),
+																	'重新进入',
+																	h('b', ' 答题页面 '),
+																	'即可。',
+																	'解析到的题库如下所示:'
+																]),
+																...createAnswererWrapperList(awsResult)
+															]),
+															onConfirm: () => {
+																if ($gm.isInGMContext()) {
+																	top?.document.location.reload();
 																}
-																select.value = '默认';
-																awsResult.push({
-																	name: 'TikuAdapter题库',
-																	url: value,
-																	homepage: 'https://github.com/DokiDoki1103/tikuAdapter',
-																	method: 'post',
-																	type: 'GM_xmlhttpRequest',
-																	contentType: 'json',
-																	headers: {},
-																	data: {
-																		// eslint-disable-next-line no-template-curly-in-string
-																		question: '${title}',
-																		options: {
-																			handler: "return (env)=>env.options?.split('\\n')"
-																		},
-																		type: {
-																			handler:
-																				" return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : undefined"
-																		}
-																	},
-																	handler: "return (res)=>res.answer.allAnswer.map(i=>([res.question,i.join('#')]))"
-																});
-															} else {
-																const contents = value
-																	.split('###')
-																	.map((i) => i.trim())
-																	.filter(Boolean);
-																for (const content of contents) {
-																	awsResult.push(...(await AnswerWrapperParser.from(content)));
-																}
+															},
+															...($gm.isInGMContext()
+																? {
+																		confirmButtonText: '立即刷新',
+																		cancelButtonText: '稍后刷新'
+																  }
+																: {})
+														});
+
+														// 格式化文本
+														textarea.value = JSON.stringify(awsResult, null, 4);
+
+														// 检测 connects.length 是因为 如果在软件的软件设置全局配置中，上下文的 GM_info 会变成空
+														if (connects.length) {
+															// 检测是否有域名白名单
+															const notAllowed: string[] = [];
+
+															// 如果是通用版本，则不检测
+															if (connects.includes('*')) {
+																return;
 															}
 
-															if (awsResult.length) {
-																CommonProject.scripts.settings.cfg.answererWrappers = awsResult;
-																this.value = '当前有' + awsResult.length + '个可用题库';
-																$modal.confirm({
+															for (const aw of awsResult) {
+																if (connects.some((connect) => new URL(aw.url).hostname.includes(connect)) === false) {
+																	notAllowed.push(aw.url);
+																}
+															}
+															if (notAllowed.length) {
+																$modal.alert({
 																	width: 600,
+																	maskCloseable: false,
+																	title: '⚠️警告',
 																	content: h('div', [
 																		h('div', [
-																			'🎉 配置成功，',
-																			h('b', ' 刷新网页后 '),
-																			'重新进入',
-																			h('b', ' 答题页面 '),
-																			'即可。',
-																			'解析到的题库如下所示:'
-																		]),
-																		...createAnswererWrapperList(awsResult)
-																	]),
-																	onConfirm: () => {
-																		if ($gm.isInGMContext()) {
-																			top?.document.location.reload();
-																		}
-																	},
-																	...($gm.isInGMContext()
-																		? {
-																				confirmButtonText: '立即刷新',
-																				cancelButtonText: '稍后刷新'
-																		  }
-																		: {})
+																			'配置成功，但检测到以下 域名/ip 不在脚本的白名单中，请安装 : ',
+																			h(
+																				'a',
+																				{
+																					href: 'https://docs.ocsjs.com/docs/other/api#全域名通用版本'
+																				},
+																				'OCS全域名通用版本'
+																			),
+																			'，或者手动添加 @connect ，否则无法进行请求。',
+																			h(
+																				'ul',
+																				notAllowed.map((url) => h('li', new URL(url).hostname))
+																			)
+																		])
+																	])
 																});
-
-																// 格式化文本
-																textarea.value = JSON.stringify(awsResult, null, 4);
-
-																// 检测 connects.length 是因为 如果在软件的软件设置全局配置中，上下文的 GM_info 会变成空
-																if (connects.length) {
-																	// 检测是否有域名白名单
-																	const notAllowed: string[] = [];
-
-																	// 如果是通用版本，则不检测
-																	if (connects.includes('*')) {
-																		return;
-																	}
-
-																	for (const aw of awsResult) {
-																		if (
-																			connects.some((connect) => new URL(aw.url).hostname.includes(connect)) === false
-																		) {
-																			notAllowed.push(aw.url);
-																		}
-																	}
-																	if (notAllowed.length) {
-																		$modal.alert({
-																			width: 600,
-																			maskCloseable: false,
-																			title: '⚠️警告',
-																			content: h('div', [
-																				h('div', [
-																					'配置成功，但检测到以下 域名/ip 不在脚本的白名单中，请安装 : ',
-																					h(
-																						'a',
-																						{
-																							href: 'https://docs.ocsjs.com/docs/other/api#全域名通用版本'
-																						},
-																						'OCS全域名通用版本'
-																					),
-																					'，或者手动添加 @connect ，否则无法进行请求。',
-																					h(
-																						'ul',
-																						notAllowed.map((url) => h('li', new URL(url).hostname))
-																					)
-																				])
-																			])
-																		});
-																	}
-																}
-															} else {
-																$modal.alert({ content: '题库配置不能为空，请重新配置。' });
 															}
-														} catch (e: any) {
-															$modal.alert({
-																content: h('div', [h('div', '解析失败，原因如下 :'), h('div', e.message)])
-															});
 														}
-													} else {
+													} catch (e: any) {
 														$modal.alert({
-															content: h('div', '不能为空！')
+															content: h('div', [h('div', '解析失败，原因如下 :'), h('div', e.message)])
 														});
 													}
 												};
