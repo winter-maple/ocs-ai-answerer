@@ -4,7 +4,7 @@ export const $playwright = {
 	showError: () => {
 		const href = 'https://docs.ocsjs.com/docs/script-helper';
 		const errorEl = h('div', [
-			'软件辅助启动失败，无法执行脚本操作，请开启软件辅助，点击链接查看开启教程 => ',
+			'软件辅助启动失败，无法执行脚本操作，请开启软件辅助后才能运行，点击链接查看开启教程 => ',
 			h('a', { href: href, target: '_blank' }, href)
 		]);
 		$modal.alert({
