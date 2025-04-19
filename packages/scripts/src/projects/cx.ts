@@ -707,7 +707,7 @@ function workOrExam(
 						return defaultAnswerWrapperHandler(answererWrappers, {
 							type: (typeInput ? getQuestionType(parseInt(typeInput.value)) : undefined) || 'unknown',
 							title,
-							options: ctx.elements.options.map((o) => o.innerText).join('\n')
+							options: ctx.type === 'completion' ? '' : ctx.elements.options.map((o) => o.innerText).join('\n')
 						});
 					});
 				} else {
@@ -1660,7 +1660,7 @@ const JobRunner = {
 						return defaultAnswerWrapperHandler(answererWrappers, {
 							type: (typeInput ? getQuestionType(parseInt(typeInput.value)) : undefined) || 'unknown',
 							title,
-							options: ctx.elements.options.map((o) => o.innerText).join('\n')
+							options: ctx.type === 'completion' ? '' : ctx.elements.options.map((o) => o.innerText).join('\n')
 						});
 					});
 				} else {
