@@ -225,7 +225,7 @@ export function simplifyWorkResult(
  * 从题目中移除指定的冗余词
  */
 export function removeRedundantWords(str: string, words: string[]) {
-	for (const word of words) {
+	for (const word of words.map((w) => w.trim())) {
 		str = str.replace(word, '');
 	}
 	return str;

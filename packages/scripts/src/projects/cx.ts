@@ -1611,21 +1611,22 @@ const JobRunner = {
 		CommonProject.scripts.workResults.methods.init();
 
 		const chapterTestTaskQuestionTitleTransform = (titles: (HTMLElement | undefined)[]) => {
-			const transformed = StringUtils.of(
-				titles.map((t) => (t ? optimizationElementWithImage(t, true).innerText : '')).join(',')
-			)
-				.nowrap(' ')
-				.nospace()
-				.toString()
-				.trim()
-				/** 超星旧版作业题目冗余数据 */
-				.replace(/^\d+[。、.]/, '')
-				.replace(/（\d+.\d+分）/, '')
-				.replace(/\(..题, .+?分\)/, '')
-				.replace(/[[(【（](.+题|名词解释|完形填空|阅读理解)[\])】）]/, '')
-				.trim();
+			const removed = removeRedundantWords(
+				titles.map((t) => (t ? optimizationElementWithImage(t, true).innerText : '')).join(','),
+				redundanceWordsText.split('\n')
+			);
 
-			return removeRedundantWords(transformed, redundanceWordsText.split('\n'));
+			return (
+				removed
+					.trim()
+					/** 超星旧版作业题目冗余数据 */
+					.replace(/^\d+[。、.]/, '')
+					.replace(/（\d+\.\d+分）/, '')
+					.replace(/\(..题, \d+?分\)/, '')
+					.replace(/\(..题, \d+\.\d+分\)/, '')
+					.replace(/[[(【（](..题|名词解释|完形填空|阅读理解)[\])】）]/, '')
+					.trim()
+			);
 		};
 
 		/** 新建答题器 */
