@@ -707,7 +707,10 @@ function workOrExam(
 						return defaultAnswerWrapperHandler(answererWrappers, {
 							type: (typeInput ? getQuestionType(parseInt(typeInput.value)) : undefined) || 'unknown',
 							title,
-							options: ctx.type === 'completion' ? '' : ctx.elements.options.map((o) => o.innerText).join('\n')
+							options:
+								ctx.type === 'completion'
+									? ''
+									: ctx.elements.options.map((o) => optimizationElementWithImage(o, true).innerText).join('\n')
 						});
 					});
 				} else {
@@ -1660,7 +1663,10 @@ const JobRunner = {
 						return defaultAnswerWrapperHandler(answererWrappers, {
 							type: (typeInput ? getQuestionType(parseInt(typeInput.value)) : undefined) || 'unknown',
 							title,
-							options: ctx.type === 'completion' ? '' : ctx.elements.options.map((o) => o.innerText).join('\n')
+							options:
+								ctx.type === 'completion'
+									? ''
+									: ctx.elements.options.map((o) => optimizationElementWithImage(o, true).innerText).join('\n')
 						});
 					});
 				} else {
