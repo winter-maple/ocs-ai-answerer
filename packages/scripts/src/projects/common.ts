@@ -47,6 +47,9 @@ const state = {
 			'zhs-smart': (index: number) => {
 				document.querySelectorAll<HTMLElement>('[role="treeitem"] .font-sec-style-node').item(index)?.click();
 			},
+			'zhs-fusion': (index: number) => {
+				document.querySelectorAll<HTMLElement>('.right-box .list .item').item(index)?.click();
+			},
 			icve: (index: number) => {
 				document.querySelectorAll<HTMLElement>(`.sheet_nums [id*="sheetSeq"]`).item(index)?.click();
 			},

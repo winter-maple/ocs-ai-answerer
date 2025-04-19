@@ -1,4 +1,4 @@
-import { $ui, Project, Script, $el, h, $$el, $message, $, $modal, MessageElement } from 'easy-us';
+import { $ui, Project, Script, $el, h, $$el, $message, $, $modal, MessageElement, $store } from 'easy-us';
 import { RemotePage, SimplifyWorkResult, OCSWorker, defaultAnswerWrapperHandler, RemotePlaywright } from '@ocsjs/core';
 import { CommonProject } from './common';
 import { workNotes, definition, volume, restudy } from '../utils/configs';
@@ -31,23 +31,36 @@ const state = {
  * 2024 下半年智慧树更新至两个版本，其中一个改进了部分UI，所以这里使用两个处理器 StudyVideoH5,FusionCourseH5 对不同UI进行处理
  */
 interface ZHSProcessor {
+	remotePage: RemotePage | undefined | void;
+	init?(): void;
 	getCourseName(): string;
-	getChapterName(parent: HTMLElement): string;
+	getChapterName(root: HTMLElement): string;
 	hasJob(): boolean;
 	getNext(opts: { next: boolean; restudy: boolean }): HTMLElement | undefined;
 	hideDialog(): void;
-	handleTestDialog(remotePage: RemotePage): void | Promise<void>;
+	handleTestDialog(remotePage?: RemotePage): void | Promise<void>;
 	switchPlaybackRate(rate: number, remotePage?: RemotePage): void | Promise<void>;
 	switchLine(definition: 'line1bq' | 'line1gq', remotePage?: RemotePage): void | Promise<void>;
 }
 
-const StudyVideoH5: ZHSProcessor = {
+class StudyVideoH5 implements ZHSProcessor {
+	remotePage: RemotePage | undefined = undefined;
+	async init() {
+		this.remotePage = await RemotePlaywright.getCurrentPage();
+		// 检查是否为软件环境
+		if (!this.remotePage) {
+			throw $playwright.showError();
+		}
+	}
+
 	getCourseName() {
 		return $el('.source-name')?.textContent || '无名称';
-	},
-	getChapterName(parent: HTMLElement) {
-		return parent.querySelector('.catalogue_title')?.textContent || '无名称';
-	},
+	}
+
+	getChapterName(root: HTMLElement): string {
+		return root.querySelector('.catalogue_title')?.textContent || '未知章节';
+	}
+
 	getNext(opts: { next: boolean; restudy: boolean }) {
 		let videoItems = Array.from(document.querySelectorAll<HTMLElement>('.clearfix.video'));
 		// 如果不是复习模式，则排除掉已经完成的任务
@@ -62,22 +75,24 @@ const StudyVideoH5: ZHSProcessor = {
 			}
 		}
 		return videoItems[0];
-	},
-	async switchPlaybackRate(rate: number, remotePage?: RemotePage) {
+	}
+
+	async switchPlaybackRate(rate: number) {
 		const controlsBar = $el('.controlsBar');
 		const sl = $el('.speedList');
 		if (controlsBar && sl) {
 			controlsBar.style.display = 'block';
 			sl.style.display = 'block';
 			const selector = `.speedList [rate="${rate === 1 ? '1.0' : rate}"]`;
-			if (remotePage) {
-				await remotePage.click(selector);
+			if (this.remotePage) {
+				await this.remotePage.click(selector);
 			} else {
 				document.querySelector<HTMLElement>(selector)?.click();
 			}
 		}
-	},
-	async switchLine(definition: 'line1bq' | 'line1gq', remotePage?: RemotePage) {
+	}
+
+	async switchLine(definition: 'line1bq' | 'line1gq') {
 		const controlsBar = $el('.controlsBar');
 		const dl = $el('.definiLines');
 
@@ -88,33 +103,27 @@ const StudyVideoH5: ZHSProcessor = {
 			const selector = `.definiLines .${definition}:not(.active)`;
 			const el = document.querySelector<HTMLElement>(selector);
 			if (el) {
-				if (remotePage) {
-					await remotePage.click(selector);
+				if (this.remotePage) {
+					await this.remotePage.click(selector);
 				} else {
 					el.click();
 				}
 			}
 		}
-	},
-	hasJob: function () {
+	}
+
+	hasJob() {
 		return $$el('.clearfix.video')?.length > 0;
-	},
-	hideDialog: function (): void {
+	}
+
+	hideDialog() {
 		/** 隐藏通知弹窗 */
 		$$el('.el-dialog__wrapper').forEach((dialog) => {
 			dialog.remove();
 		});
-	},
-	async handleTestDialog(remotePage: RemotePage) {
-		const tip = $el('[role="dialog"][aria-label="提示"]');
-		if (tip?.querySelector('.el-message-box__message')?.textContent?.includes('未做答的弹题不能关闭')) {
-			const close = tip.querySelector('[aria-label="Close"]');
-			if (close) {
-				await remotePage.click('[role="dialog"][aria-label="提示"] [aria-label="Close"]');
-				await $.sleep(1000);
-			}
-		}
+	}
 
+	async handleTestDialog() {
 		const items = $$el('#playTopic-dialog .el-pager .number');
 		if (items.length) {
 			for (const item of items) {
@@ -132,81 +141,176 @@ const StudyVideoH5: ZHSProcessor = {
 					const random = Math.floor(Math.random() * options.length);
 					await $.sleep(1000);
 					// nth-child 从1开始
-					await remotePage.click(`#playTopic-dialog .topic .radio ul > li:nth-child(${random + 1})`);
+					const btn_selector = `#playTopic-dialog .topic .radio ul > li:nth-child(${random + 1})`;
+					if (this.remotePage) {
+						await this.remotePage.click(btn_selector);
+					} else {
+						$el(btn_selector)?.click();
+					}
+
 					await $.sleep(1000);
 				}
 			}
 			await $.sleep(1000);
 			// 关闭弹窗
-			await remotePage.click('#playTopic-dialog .dialog-footer .btn');
+			const close_btn_selector = '#playTopic-dialog .close-btn';
+			if (this.remotePage) {
+				await this.remotePage.click(close_btn_selector);
+			} else {
+				$el(close_btn_selector)?.click();
+			}
 		}
 
 		/**
 		 * 每过三秒递归检测是否有弹窗
 		 */
 		await $.sleep(3000);
-		await this.handleTestDialog(remotePage);
+		await this.handleTestDialog();
 	}
-};
+}
 
-const FusionCourseH5: ZHSProcessor = {
+/**
+ * AI 助教课程，为智慧课程分类中的新课程
+ */
+class FusionCourseH5 extends StudyVideoH5 implements ZHSProcessor {
 	getCourseName() {
-		return $el('.right-scroll .catalogue_title')?.textContent || '无名称';
-	},
-	getChapterName(parent: HTMLElement) {
-		return parent.querySelector('.catalogue_title')?.textContent || '无名称';
-	},
-	hasJob() {
-		return $$el('.right-scroll .clearfix.video')?.length > 0;
-	},
+		// 无法读取课程名称
+		return '智慧课程-AI';
+	}
+
 	getNext(opts: { next: boolean; restudy: boolean }) {
-		let videoItems = Array.from(document.querySelectorAll<HTMLElement>('.right-scroll .clearfix.video'));
+		// AI 助教课有两种进度模式，一个是百分百，一个是必学项目进度条
+		const is_resource_box_mode = !!document.querySelector('.resource-box');
+
+		let videoItems = Array.from(document.querySelectorAll<HTMLElement>('.clearfix.video')).filter((el) => {
+			if (is_resource_box_mode) {
+				return !!el.querySelector('.resource-box');
+			}
+			return true;
+		});
+
 		console.log(videoItems);
 
 		// 如果不是复习模式，则排除掉已经完成的任务
 		if (!opts.restudy) {
+			if (is_resource_box_mode) {
+				videoItems = videoItems.filter((el) => {
+					const text = el.querySelector('.resource-text')?.textContent || '';
+					const [progress, total] = text
+						.replace('必学', '')
+						.trim()
+						.split('/')
+						.map((s) => parseInt(s));
+					return progress < total;
+				});
+			} else {
+				videoItems = videoItems.filter((el) => {
+					const num_el = el.querySelector('.progress-num');
+					return num_el === null || num_el.textContent !== '100%';
+				});
+			}
+		}
+
+		for (let i = 0; i < videoItems.length; i++) {
+			const item = videoItems[i];
+
+			if (is_resource_box_mode) {
+				if (item.classList.contains('activeNode')) {
+					return videoItems[i + (opts.next ? 1 : 0)];
+				}
+			} else {
+				if (item.classList.contains('current_play')) {
+					return videoItems[i + (opts.next ? 1 : 0)];
+				}
+			}
+		}
+		return videoItems[0];
+	}
+}
+
+/**
+ * 新共享课页面，为智慧课程分类中的新课程
+ */
+class StudyPlusH5 extends StudyVideoH5 implements ZHSProcessor {
+	getCourseName() {
+		return $el('.top-back-box > span:nth-child(2)')?.textContent?.match(/课程名称：(.+)/)?.[1] || '无名称';
+	}
+
+	getChapterName(item: HTMLElement): string {
+		return item.parentElement?.textContent || '未知章节';
+	}
+
+	hasJob() {
+		return $$el('.child-main')?.length > 0;
+	}
+
+	getNext(opts: { next: boolean; restudy: boolean }) {
+		let videoItems = Array.from(document.querySelectorAll<HTMLElement>('.child-main')).filter((el) =>
+			el.querySelector('.child-time')
+		);
+		console.log(videoItems);
+		// 如果不是复习模式，则排除掉已经完成的任务
+		if (!opts.restudy) {
 			videoItems = videoItems.filter((el) => {
-				const num_el = el.querySelector('.progress-num');
-				return num_el === null || num_el.textContent !== '100%';
+				if (el.querySelector('.child-check')) {
+					return false;
+				}
+				return true;
 			});
 		}
 
 		for (let i = 0; i < videoItems.length; i++) {
 			const item = videoItems[i];
-			if (item.classList.contains('current_play')) {
+			if (item.classList.contains('current')) {
 				return videoItems[i + (opts.next ? 1 : 0)];
 			}
 		}
 		return videoItems[0];
-	},
+	}
+
 	hideDialog() {
-		return StudyVideoH5.hideDialog();
-	},
-	async handleTestDialog(remotePage: RemotePage) {
-		const items = $$el('#playTopic-dialog .el-pager .number');
-		if (items.length) {
-			for (const item of items) {
-				if (item.classList.contains('active') === false) {
-					item.click();
-					await $.sleep(500);
+		/** 隐藏通知弹窗 */
+		$$el('.el-overlay,.el-dialog').forEach((dialog) => {
+			dialog.style.display = 'none';
+		});
+	}
+
+	async handleTestDialog(remotePage?: RemotePage) {
+		const question_box = $el('.class-question-box');
+		if (question_box) {
+			const options = $$el('.options option');
+			if (options.length !== 0) {
+				await waitForCaptcha();
+				// 最小化脚本窗口
+				$render.moveToEdge();
+				// 随机选
+				const random = Math.floor(Math.random() * options.length);
+				await $.sleep(1000);
+				if (remotePage) {
+					await remotePage.click(options[random]);
+				} else {
+					options[random].click();
 				}
 
-				const options = $$el('#playTopic-dialog ul .topic-item');
-				if (options.length !== 0) {
-					await waitForCaptcha();
-					// 最小化脚本窗口
-					$render.moveToEdge();
-					// 随机选
-					const random = Math.floor(Math.random() * options.length);
-					await $.sleep(1000);
-					// nth-child 从1开始
-					await remotePage.click(`#playTopic-dialog .topic .radio ul > li:nth-child(${random + 1})`);
-					await $.sleep(1000);
-				}
+				await $.sleep(1000);
 			}
 			await $.sleep(1000);
-			// 关闭弹窗
-			await remotePage.click('#playTopic-dialog .close-btn');
+			const close_btn = $el('.close_btn');
+			if (close_btn) {
+				if (remotePage) {
+					await remotePage.click(close_btn);
+				} else {
+					close_btn.click();
+				}
+			}
+			const submit_btn = $el('.submit-btn');
+			if (submit_btn) {
+				if (remotePage) {
+					await remotePage.click(submit_btn);
+				} else {
+					submit_btn.click();
+				}
+			}
 		}
 
 		/**
@@ -214,14 +318,8 @@ const FusionCourseH5: ZHSProcessor = {
 		 */
 		await $.sleep(3000);
 		await this.handleTestDialog(remotePage);
-	},
-	switchPlaybackRate(rate: number, remotePage: RemotePage) {
-		return StudyVideoH5.switchPlaybackRate(rate, remotePage);
-	},
-	switchLine(definition: 'line1bq' | 'line1gq', remotePage: RemotePage) {
-		return StudyVideoH5.switchLine(definition, remotePage);
 	}
-};
+}
 
 /** 工程导出 */
 export const ZHSProject = Project.create({
@@ -252,7 +350,8 @@ export const ZHSProject = Project.create({
 			name: '🖥️ 共享课-学习脚本',
 			matches: [
 				['共享课学习页面', 'studyvideoh5.zhihuishu.com'],
-				['新版AI课页面', 'fusioncourseh5.zhihuishu.com']
+				['新共享课学习页面', 'studyplush5.zhihuishu.com'],
+				['新版AI课页面', 'fusioncourseh5.zhihuishu.com/stuStudy']
 			],
 			namespace: 'zhs.gxk.study',
 			configs: {
@@ -412,7 +511,19 @@ export const ZHSProject = Project.create({
 				// 置顶当前脚本
 				CommonProject.scripts.render.methods.pin(this);
 
-				const processor = location.href.includes('fusioncourseh5') ? FusionCourseH5 : StudyVideoH5;
+				const type = location.href.includes('fusioncourseh5')
+					? 'AI课程'
+					: location.href.includes('studyplush5')
+					? '新共享课'
+					: '共享课';
+
+				const ProcessorConstructor = location.href.includes('fusioncourseh5')
+					? FusionCourseH5
+					: location.href.includes('studyplush5')
+					? StudyPlusH5
+					: StudyVideoH5;
+
+				const processor = new ProcessorConstructor();
 
 				// 10秒后还没加载出来，则结束
 				setTimeout(() => {
@@ -434,12 +545,8 @@ export const ZHSProject = Project.create({
 				};
 				await waitForVideoJob();
 
-				// 检查是否为软件环境
-				const remotePage = await RemotePlaywright.getCurrentPage();
-				// 检查是否为软件环境
-				if (!remotePage) {
-					return $playwright.showError();
-				}
+				// 初始化处理器
+				await processor.init();
 
 				// 监听定时停止
 				this.onConfigChange('stopTime', (stopTime) => {
@@ -460,12 +567,12 @@ export const ZHSProject = Project.create({
 					if (typeof curr === 'string') {
 						this.cfg.playbackRate = parseFloat(curr);
 					}
-					processor.switchPlaybackRate(curr, remotePage);
+					processor.switchPlaybackRate(curr);
 				});
 
 				// 监听清晰度
 				this.onConfigChange('definition', (curr) => {
-					processor.switchLine(curr, remotePage);
+					processor.switchLine(curr);
 				});
 
 				// 循环记录学习时间
@@ -483,7 +590,7 @@ export const ZHSProject = Project.create({
 				// 自动隐藏弹窗
 				processor.hideDialog();
 				// 自动过弹窗测验
-				processor.handleTestDialog(remotePage);
+				processor.handleTestDialog();
 
 				setInterval(async () => {
 					// 删除遮罩层
@@ -496,42 +603,65 @@ export const ZHSProject = Project.create({
 
 				$message.info({ content: '3秒后开始学习', duration: 3 });
 
+				const remotePage = processor.remotePage;
+
 				const study = async (opts: { next: boolean }) => {
 					if (state.study.stop === false) {
 						const item = processor.getNext({ next: opts.next, restudy: this.cfg.restudy });
-
 						if (item) {
-							$console.log('即将学习：', item.querySelector('.catalogue_title')?.textContent || '未知章节');
+							const msg = '即将学习：' + processor.getChapterName(item);
+							$message.info({ content: msg });
+							$console.log(msg);
 							await $.sleep(3000);
 							// 最小化脚本窗口
 							$render.moveToEdge();
 							// 点击侧边栏任务
-							await remotePage.click(item);
-							// 两次点击修复黑屏问题
-							await remotePage.click(item);
+							if (remotePage) {
+								if (type === '新共享课') {
+									await remotePage.click('.title-box');
+									await $.sleep(200);
+								}
+								item.scrollIntoView();
+								await remotePage.click(item);
+								await $.sleep(200);
+								// 两次点击修复黑屏问题
+								await remotePage.click(item);
+							} else {
+								item.click();
+							}
 
 							watch(
 								processor,
-								remotePage,
 								{
 									reloadWhenError: this.cfg.reloadWhenError,
 									volume: this.cfg.volume,
 									playbackRate: this.cfg.playbackRate,
 									definition: this.cfg.definition
 								},
-								({ next }) => study({ next })
+								{
+									reload() {
+										// 旧共享课页面点击右侧栏就能重新加载
+										if (type === '共享课') {
+											study({ next: false });
+										} else {
+											location.reload();
+										}
+									},
+									onended({ next }) {
+										study({ next });
+									}
+								}
 							);
 						} else {
 							finishAlert();
 						}
 					} else {
-						$message.warn({
-							content: '检测到当前视频全部播放完毕，如果还有未完成的视频请刷新重试，或者打开复习模式。'
+						const msg = '检测到当前视频全部播放完毕，如果还有未完成的视频请刷新重试，或者打开复习模式。';
+						$message.warn({ content: msg });
+						CommonProject.scripts.settings.methods.notificationBySetting(msg, {
+							duration: 0,
+							extraTitle: '知道智慧树学习脚本'
 						});
-						CommonProject.scripts.settings.methods.notificationBySetting(
-							'检测到当前视频全部播放完毕，如果还有未完成的视频请刷新重试，或者打开复习模式。',
-							{ duration: 0, extraTitle: '知道智慧树学习脚本' }
-						);
 					}
 				};
 				// 当页面初始化时无需切换下一个视频，直接播放当前的。
@@ -657,18 +787,19 @@ export const ZHSProject = Project.create({
 						}
 						// 置顶当前脚本
 						CommonProject.scripts.render.methods.pin(this);
+						const processor = new StudyVideoH5();
 
 						const getInfos = () => Array.from(document.querySelectorAll<HTMLElement>('.section-item-collapse-info'));
 						const getChapterName = () => document.querySelector('.point-title-text')?.textContent || '未知';
 						const getNextJob = () => {
 							const cards = Array.from(document.querySelectorAll('.basic-info-video-card-container')).filter((el) => {
-								// 跳过任务点，这个是外部链接
-								const exclude_jobs = [/** B站 */ 'bzhan', /** 知网 */ 'zhiwang'];
+								// 需点击的任务点，其他是是外部链接或者未知任务点
+								const include_jobs = ['video', 'book', /** 一般是PPT */ 'other'];
 								const root = el.parentElement;
-								if (root && exclude_jobs.some((job) => root.getElementsByClassName(job).length > 0)) {
-									return false;
+								if (root && include_jobs.some((job) => root.getElementsByClassName(job).length > 0)) {
+									return true;
 								}
-								return true;
+								return false;
 							});
 							for (let index = 0; index < cards.length; index++) {
 								const card = cards[index];
@@ -724,12 +855,12 @@ export const ZHSProject = Project.create({
 							if (typeof curr === 'string') {
 								this.cfg.playbackRate = parseFloat(curr);
 							}
-							StudyVideoH5.switchPlaybackRate(curr);
+							processor.switchPlaybackRate(curr);
 						});
 
 						// 监听清晰度
 						this.onConfigChange('definition', (curr) => {
-							StudyVideoH5.switchLine(curr);
+							processor.switchLine(curr);
 						});
 
 						const doWork = async () => {
@@ -762,7 +893,7 @@ export const ZHSProject = Project.create({
 								});
 							} catch {
 								const msg = '未找到学习视频，即将自动下一节！';
-								$message.error({ content: msg });
+								$message.error(msg);
 								$console.error(msg);
 								await $.sleep(3000);
 								await next();
@@ -773,10 +904,10 @@ export const ZHSProject = Project.create({
 								// 上面操作会导致元素刷新，这里重新获取视频
 								try {
 									// 设置清晰度
-									await StudyVideoH5.switchLine(this.cfg.definition || 'line1bq');
+									await processor.switchLine(this.cfg.definition || 'line1bq');
 									await $.sleep(1000);
 									// 设置播放速度
-									await StudyVideoH5.switchPlaybackRate(this.cfg.playbackRate);
+									await processor.switchPlaybackRate(this.cfg.playbackRate);
 									await $.sleep(1000);
 									const media = await waitForMedia({ timeout: 5 * 1000, filter: (m) => m.src.length !== 0 });
 									await $.sleep(1000);
@@ -829,7 +960,8 @@ export const ZHSProject = Project.create({
 			name: '✍️ 智慧课程-作业脚本',
 			matches: [
 				['智慧课程作业页面', 'smartcourseexam.zhihuishu.com/ReviewExam'],
-				['智慧课程掌握提升页面', 'studentexamcomh5.zhihuishu.com/studentReviewTestOrExam']
+				['智慧课程-掌握提升页面', 'studentexamcomh5.zhihuishu.com/studentReviewTestOrExam'],
+				['智慧课程-AI助教掌握度', 'fusioncourseh5.zhihuishu.com/exam']
 			],
 			namespace: 'zhs.smart.work',
 			configs: {
@@ -837,6 +969,7 @@ export const ZHSProject = Project.create({
 					defaultValue: $ui.notes([
 						'自动答题前请在 “通用-全局设置” 中设置题库配置。',
 						'可以搭配 “通用-在线搜题” 一起使用。',
+						'多个掌握度可以重复使用重新答题按钮以便快速完成。',
 						'⚠️开始前请仔细阅读以下事项：⚠️',
 						'⚠️-如果未开始答题，请尝试刷新页面。',
 						['⚠️-答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。']
@@ -848,23 +981,22 @@ export const ZHSProject = Project.create({
 					start: async () => {
 						await $.sleep(3000);
 
-						// // 检查是否为软件环境
-						// const remotePage = await RemotePlaywright.getCurrentPage();
-						// // 检查是否为软件环境
-						// if (!remotePage) {
-						// 	return $playwright.showError();
-						// }
+						// 检查是否为软件环境
+						const remotePage = await RemotePlaywright.getCurrentPage();
+						// 检查是否为软件环境
+						if (!remotePage) {
+							return $playwright.showError();
+						}
 						$message.warn({ content: '即将开始答题，答题完毕之前请勿操作页面！', duration: 0 });
 						setTimeout(() => {
-							// $message.warn({ content: '已将面板移至窗口边，避免阻挡脚本操作点击！', duration: 10 });
-							// // 将面板移动至左侧顶部，防止挡住软件登录
-							// if ($.isInTopWindow()) {
-							// 	$render.moveToEdge();
-							// }
-
-							// 目前暂时不需要软件辅助
 							commonWork(this, {
-								workerProvider: (opts) => smartWork(undefined, opts)
+								workerProvider: (opts) => {
+									if (location.href.includes('fusioncourseh5.zhihuishu.com/exam')) {
+										return fusioncourseWork(remotePage, opts);
+									} else {
+										return smartWork(remotePage, opts);
+									}
+								}
 							});
 						}, 3000);
 					}
@@ -991,20 +1123,35 @@ export const ZHSProject = Project.create({
  */
 async function watch(
 	processor: ZHSProcessor,
-	remotePage: RemotePage,
 	options: { reloadWhenError: boolean; volume: number; playbackRate: number; definition?: 'line1bq' | 'line1gq' },
-	onended: (opts: { next: boolean }) => void
+	actions: {
+		onended: (opts: { next: boolean }) => void;
+		reload: () => void;
+	}
 ) {
-	const reload = (e: any) => {
+	const reload = async (e: any) => {
 		$console.error(e);
 		if (options.reloadWhenError) {
-			$console.log('视频加载失败，即将刷新页面。');
+			const msg = '视频加载失败，即将刷新页面。';
+			const reload_count = await $store.getTab('reload-count');
+			if (reload_count && reload_count > 3) {
+				const msg = '视频加载失败导致重新加载页面次数超过3次，请尝试关闭页面重新打开，或者检查网络连接！';
+				await $store.setTab('reload-count', 0);
+				$message.error({ content: msg, duration: 0 });
+				$console.log(msg);
+				return;
+			}
+			await $store.setTab('reload-count', (reload_count ?? 0) + 1);
+			$message.error(msg);
+			$console.log(msg);
 			setTimeout(() => {
-				onended({ next: false });
-			}, 3000);
+				actions.reload();
+			}, 5000);
 		} else {
-			$console.log('视频加载失败，即将跳过。');
-			onended({ next: true });
+			const msg = '视频加载失败，即将跳过。';
+			$message.error(msg);
+			$console.log(msg);
+			actions.onended({ next: true });
 		}
 	};
 	// 部分用户视频加载很慢，这里等待一下
@@ -1018,17 +1165,17 @@ async function watch(
 			media.volume = options.volume;
 		}
 	} catch (e) {
-		return reload(e);
+		return await reload(e);
 	}
 
 	const set = async () => {
 		// 上面操作会导致元素刷新，这里重新获取视频
 		try {
 			// 设置清晰度
-			await processor.switchLine(options.definition || 'line1bq', remotePage);
+			await processor.switchLine(options.definition || 'line1bq');
 			await $.sleep(1000);
 			// 设置播放速度
-			await processor.switchPlaybackRate(options.playbackRate, remotePage);
+			await processor.switchPlaybackRate(options.playbackRate);
 
 			const media = await waitForMedia({ timeout: 10 * 1000 });
 			state.study.currentMedia = media;
@@ -1041,7 +1188,7 @@ async function watch(
 			}
 			return state.study.currentMedia;
 		} catch (e) {
-			return reload(e);
+			return await reload(e);
 		}
 	};
 
@@ -1059,7 +1206,7 @@ async function watch(
 			 * 元素无法访问证明用户切换视频了
 			 * 所以不往下播放视频，而是重新播放用户当前选中的视频
 			 */
-			onended({ next: false });
+			actions.onended({ next: false });
 		}
 	}, 3000);
 
@@ -1076,7 +1223,7 @@ async function watch(
 	video.onended = () => {
 		clearInterval(videoCheckInterval);
 		// 正常切换下一个视频
-		onended({ next: true });
+		actions.onended({ next: true });
 	};
 }
 
@@ -1597,6 +1744,151 @@ function smartWork(
 		// 答题完成后，题库选项点击才会同步题目，否则会导致题目错乱
 		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'zhs-smart';
 	})();
+	return worker;
+}
+
+function fusioncourseWork(
+	remotePage: RemotePage | undefined,
+	{ answererWrappers, period, thread, answerSeparators, answerMatchMode }: CommonWorkOptions
+) {
+	$message.info({ content: '开始作业' });
+
+	CommonProject.scripts.workResults.methods.init({
+		questionPositionSyncHandlerType: 'zhs-fusion'
+	});
+
+	const titleTransform = (titles: (HTMLElement | undefined)[]) => {
+		return titles
+			.filter((t) => t?.innerText)
+			.map((t) => (t ? optimizationElementWithImage(t).innerText : ''))
+			.join(',');
+	};
+
+	const worker = new OCSWorker({
+		root: '.exam-item',
+		elements: {
+			type: '.quest-type',
+			title: '.quest-title .option-name',
+			options: 'label'
+		},
+		thread: thread ?? 1,
+		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
+		answerMatchMode: answerMatchMode,
+		/** 默认搜题方法构造器 */
+		answerer: (elements, ctx) => {
+			const title = titleTransform(elements.title);
+			if (title) {
+				return CommonProject.scripts.apps.methods.searchAnswerInCaches(title, async () => {
+					await $.sleep((period ?? 3) * 1000);
+					return defaultAnswerWrapperHandler(answererWrappers, {
+						type: ctx.type || 'unknown',
+						title,
+						options: ctx.elements.options.map((o) => o.innerText).join('\n')
+					});
+				});
+			} else {
+				throw new Error('题目为空，请查看题目是否为空，或者忽略此题');
+			}
+		},
+		work: {
+			type(ctx) {
+				const type = ctx.elements.type[0].textContent;
+				if (type?.includes('单选题')) {
+					return 'single';
+				} else if (type?.includes('多选题')) {
+					return 'multiple';
+				} else if (type?.includes('判断题')) {
+					return 'judgement';
+				} else if (type?.includes('填空题')) {
+					return 'completion';
+				} else {
+					return undefined;
+				}
+			},
+			/** 自定义处理器 */
+			async handler(type, answer, option, ctx) {
+				if (type === 'judgement' || type === 'single' || type === 'multiple') {
+					let label: HTMLElement | null = null;
+					if (type === 'multiple') {
+						label = option.querySelector<HTMLElement>('.el-checkbox__input:not(.is-checked)');
+					} else {
+						label = option.querySelector<HTMLElement>('.radio__input:not(.is-checked)');
+					}
+					if (label) {
+						label.click();
+						await $.sleep(200);
+					}
+				}
+			}
+		},
+
+		/**
+		 * 作业都是一题一题做的，不像其他自动答题一样可以获取全部试卷内容。
+		 * 所以只能根据自定义的状态进行搜索结果的显示。
+		 */
+		onResultsUpdate(current, _, res) {
+			if (current.result) {
+				CommonProject.scripts.workResults.methods.setResults(simplifyWorkResult(res, titleTransform));
+			}
+
+			if (current.result?.finish) {
+				CommonProject.scripts.apps.methods.addQuestionCacheFromWorkResult(
+					simplifyWorkResult([current], titleTransform)
+				);
+			}
+			CommonProject.scripts.workResults.methods.updateWorkStateByResults(res);
+		}
+	});
+
+	// const getNextBtn = () => document.querySelector<HTMLElement>('.next-btn:not(.disabled)');
+	// let next = getNextBtn();
+
+	// (async () => {
+	// 	// 从第一题开始
+	// 	const first = document.querySelector<HTMLElement>('div.list .item');
+	// 	if (first) {
+	// 		if (remotePage) await remotePage.click(first);
+	// 		else first.click();
+	// 		await $.sleep(3000);
+	// 	}
+
+	// 	while (next && worker.isClose === false) {
+	// 		next = getNextBtn();
+	// 		if (next) {
+	// 			await $.sleep(1000);
+	// 			if (remotePage) await remotePage.click(next);
+	// 			else next.click();
+	// 			// 等待题目加载
+	// 			await $.sleep(1000);
+	// 		}
+	// 	}
+
+	// 	$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+	// 	worker.emit('done');
+	// 	// 答题完成后，题库选项点击才会同步题目，否则会导致题目错乱
+	// 	CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'zhs-fusion';
+	// })();
+
+	worker
+		.doWork()
+		.then(async (res) => {
+			// 如果被强制关闭，则不进行保存操作
+			if (worker.isClose === true) {
+				return;
+			}
+
+			// @ts-ignore
+			if (worker.isClose === true) {
+				return;
+			}
+
+			$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+			worker.emit('done');
+		})
+		.catch((err) => {
+			$message.error({ content: '答题程序发生错误 : ' + err.message, duration: 0 });
+		});
+
 	return worker;
 }
 
