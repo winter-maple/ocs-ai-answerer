@@ -792,22 +792,37 @@ export const ZHSProject = Project.create({
 						const getInfos = () => Array.from(document.querySelectorAll<HTMLElement>('.section-item-collapse-info'));
 						const getChapterName = () => document.querySelector('.point-title-text')?.textContent || '未知';
 						const getNextJob = () => {
-							const cards = Array.from(document.querySelectorAll('.basic-info-video-card-container')).filter((el) => {
-								// 需点击的任务点，其他是是外部链接或者未知任务点
-								const include_jobs = ['video', 'book', /** 一般是PPT */ 'other'];
-								const root = el.parentElement;
-								if (root && include_jobs.some((job) => root.getElementsByClassName(job).length > 0)) {
+							const cards = Array.from(document.querySelectorAll('.resources-item'))
+								.filter((el) => {
+									// 需点击的任务点，其他是是外部链接或者未知任务点
+									const include_jobs = ['video', 'book', /** 一般是PPT */ 'other', /** 一般是文档 */ 'text'];
+									if (el && include_jobs.some((job) => el.getElementsByClassName(job).length > 0)) {
+										return true;
+									}
+									return false;
+								})
+								// 如果不是复习模式，则过滤掉已经完成的小节
+								.filter((el) => {
+									if (this.cfg.restudy === false) {
+										if (el.querySelector('.finished-icon')) {
+											return false;
+										}
+									}
 									return true;
-								}
-								return false;
-							});
+								});
+
+							let target_el;
 							for (let index = 0; index < cards.length; index++) {
 								const card = cards[index];
-								if (card.classList.contains('active') === false) {
-									continue;
+								if (card.querySelector('.active')) {
+									target_el = cards[index + 1];
+									break;
 								}
-								return cards[index + 1]?.querySelector('.common-text') as HTMLElement;
 							}
+
+							target_el = target_el || cards[0];
+
+							return target_el?.querySelector('.common-text') as HTMLElement;
 						};
 						const getNext = () => {
 							const infos = getInfos();
@@ -864,7 +879,7 @@ export const ZHSProject = Project.create({
 						});
 
 						const doWork = async () => {
-							await $.sleep(5000);
+							await $.sleep(5 * 1000);
 
 							const next = async () => {
 								const nextJob = getNextJob();
