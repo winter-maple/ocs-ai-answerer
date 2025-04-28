@@ -287,7 +287,7 @@ export const CommonProject = Project.create({
 													}
 
 													try {
-														const awsResult: AnswererWrapper[] = [];
+														let awsResult: AnswererWrapper[] = [];
 														if (select.value === 'TikuAdapter') {
 															if (value.startsWith('http') === false) {
 																$modal.alert({
@@ -339,6 +339,17 @@ export const CommonProject = Project.create({
 															$modal.alert({ content: '题库配置不能为空，请重新配置。' });
 															return;
 														}
+
+														// 唯一化处理
+														const result_set: AnswererWrapper[] = [];
+														for (const res of awsResult) {
+															if (result_set.find((i) => JSON.stringify(i) === JSON.stringify(res))) {
+																continue;
+															}
+															result_set.push(res);
+														}
+														awsResult = result_set;
+
 														// 判断新旧是否一致，如果一致则提示
 														if (
 															JSON.stringify(CommonProject.scripts.settings.cfg.answererWrappers) ===
