@@ -1,4 +1,4 @@
-import { $ui, Project, Script, $el, h, $$el, $message, $, $modal, MessageElement, $store } from 'easy-us';
+import { $ui, Project, Script, $el, h, $$el, $message, $, $modal, MessageElement, $store, $gm } from 'easy-us';
 import { RemotePage, SimplifyWorkResult, OCSWorker, defaultAnswerWrapperHandler, RemotePlaywright } from '@ocsjs/core';
 import { CommonProject } from './common';
 import { workNotes, definition, volume, restudy } from '../utils/configs';
@@ -791,16 +791,12 @@ export const ZHSProject = Project.create({
 
 						const getInfos = () => Array.from(document.querySelectorAll<HTMLElement>('.section-item-collapse-info'));
 						const getChapterName = () => document.querySelector('.point-title-text')?.textContent || '未知';
+
+						// 需点击的任务点，其他是是外部链接或者未知任务点
+						const include_jobs = ['video', 'book', /** 一般是PPT */ 'other', /** 一般是文档 */ 'text'];
+
 						const getNextJob = () => {
 							const cards = Array.from(document.querySelectorAll('.resources-item'))
-								.filter((el) => {
-									// 需点击的任务点，其他是是外部链接或者未知任务点
-									const include_jobs = ['video', 'book', /** 一般是PPT */ 'other', /** 一般是文档 */ 'text'];
-									if (el && include_jobs.some((job) => el.getElementsByClassName(job).length > 0)) {
-										return true;
-									}
-									return false;
-								})
 								// 如果不是复习模式，则过滤掉已经完成的小节
 								.filter((el) => {
 									if (this.cfg.restudy === false) {
@@ -819,10 +815,7 @@ export const ZHSProject = Project.create({
 									break;
 								}
 							}
-
-							target_el = target_el || cards[0];
-
-							return target_el?.querySelector('.common-text') as HTMLElement;
+							return target_el;
 						};
 						const getNext = () => {
 							const infos = getInfos();
@@ -857,7 +850,7 @@ export const ZHSProject = Project.create({
 									}
 								}
 							}
-							return works[0].info;
+							return works[0]?.info;
 						};
 
 						// 监听音量
@@ -884,8 +877,23 @@ export const ZHSProject = Project.create({
 							const next = async () => {
 								const nextJob = getNextJob();
 								if (nextJob) {
-									nextJob.click();
-									await doWork();
+									const job_title = nextJob.querySelector('.common-text') as HTMLElement;
+									if (include_jobs.some((job) => nextJob.getElementsByClassName(job).length > 0)) {
+										job_title.click();
+										await doWork();
+									}
+									// 链接任务
+									else {
+										const _open = $gm.unsafeWindow.open;
+										$gm.unsafeWindow.open = () => null;
+										document.querySelector('.basic-info-video-card-container.active')?.classList.remove('active');
+										job_title.click();
+										nextJob.querySelector('.basic-info-video-card-container')?.classList.add('active');
+										setTimeout(async () => {
+											$gm.unsafeWindow.open = _open;
+											await doWork();
+										}, 1000);
+									}
 									return;
 								}
 
