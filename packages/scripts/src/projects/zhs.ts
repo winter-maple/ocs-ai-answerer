@@ -898,15 +898,16 @@ export const ZHSProject = Project.create({
 										nextJob.querySelector('.basic-info-video-card-container')?.classList.add('active');
 										setTimeout(async () => {
 											$gm.unsafeWindow.open = _open;
-											await doWork();
+											// 直接下一个
+											await next();
 										}, 1000);
 									}
 									return;
 								}
 
-								const next = getNext();
-								if (next) {
-									next.click();
+								const nextEl = getNext();
+								if (nextEl) {
+									nextEl.click();
 								} else {
 									finishAlert();
 								}
