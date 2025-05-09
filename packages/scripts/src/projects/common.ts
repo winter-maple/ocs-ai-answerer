@@ -510,12 +510,12 @@ export const CommonProject = Project.create({
 				'randomWork-choice': {
 					defaultValue: false,
 					label: '(仅超星)随机选择',
-					attrs: { type: 'checkbox', title: '随机选择任意一个选项' }
+					attrs: { type: 'checkbox', title: '题库搜索不到答案时，随机选择任意一个选项' }
 				},
 				'randomWork-complete': {
 					defaultValue: false,
 					label: '(仅超星)随机填空',
-					attrs: { type: 'checkbox', title: '随机填写以下任意一个文案' }
+					attrs: { type: 'checkbox', title: '题库搜索不到答案时，随机填写以下任意一个文案' }
 				},
 				'randomWork-completeTexts-textarea': {
 					defaultValue: ['不会', '不知道', '不清楚', '不懂', '不会写'].join('\n'),
