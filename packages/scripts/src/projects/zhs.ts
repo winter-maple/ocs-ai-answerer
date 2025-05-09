@@ -1043,7 +1043,7 @@ export const ZHSProject = Project.create({
 			}
 		}),
 		'xnk-study': new Script({
-			name: '🖥️ 校内课-学习脚本',
+			name: '🖥️ 校内课（翻转课）-学习脚本',
 			matches: [['校内课学习页面', 'zhihuishu.com/aidedteaching/sourceLearning']],
 			namespace: 'zhs.xnk.study',
 			configs: {
@@ -1084,7 +1084,7 @@ export const ZHSProject = Project.create({
 
 						if (item.classList.contains('active')) {
 							if (needsStudy) {
-								return item;
+								return list[index + 1];
 							} else {
 								passActive = true;
 							}
@@ -1104,7 +1104,11 @@ export const ZHSProject = Project.create({
 						clearInterval(interval);
 
 						if (document.querySelector('#mediaPlayer')) {
+							document.querySelector('.file-item.active')?.scrollIntoView();
+							const name = next.querySelector('#sourceTit')?.textContent || '未知视频';
+							$message.info('正在学习：' + name);
 							watchXnk({ volume: this.cfg.volume }, () => {
+								$message.info('视频完成播放，正在自动跳转下一节！');
 								setTimeout(() => {
 									/** 下一章 */
 									const next = nextElement();
@@ -1113,7 +1117,9 @@ export const ZHSProject = Project.create({
 							});
 						} else {
 							setTimeout(() => {
-								$console.log('不是视频任务，即将切换下一章。');
+								const msg = '未找到学习视频，即将自动下一节！';
+								$message.warn(msg);
+								$console.warn(msg);
 								/** 下一章 */
 								const next = nextElement();
 								if (next) next.click();
