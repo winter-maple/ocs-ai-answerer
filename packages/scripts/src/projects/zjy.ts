@@ -1,6 +1,6 @@
 import { $, OCSWorker, defaultAnswerWrapperHandler } from '@ocsjs/core';
-import { Project, Script, $ui, $el, $message } from 'easy-us';
-import { volume } from '../utils/configs';
+import { Project, Script, $ui, $el, $message, $modal, h } from 'easy-us';
+import { playbackRate, volume } from '../utils/configs';
 import { waitForMedia } from '../utils/study';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { $console } from './background';
@@ -15,7 +15,8 @@ type CourseType = {
 
 const state = {
 	studying: false,
-	studyingId: ''
+	studyingId: '',
+	media: null as HTMLMediaElement | null
 };
 
 const work_pages: [string, string][] = [
@@ -123,7 +124,20 @@ export const ZJYProject = Project.create({
 						'提示：职教云无法使用倍速。'
 					]).outerHTML
 				},
-				volume: volume
+				volume: volume,
+				playbackRate: (() => {
+					playbackRate.options = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4, 6, 8].map((rate) => [
+						rate.toString(),
+						rate + ' x'
+					]);
+					return playbackRate;
+				})(),
+				currentClassId: {
+					defaultValue: ''
+				},
+				courseData: {
+					defaultValue: [] as CourseType[]
+				}
 			},
 			methods() {
 				return {
@@ -139,6 +153,21 @@ export const ZJYProject = Project.create({
 						state.studyingId = id;
 						state.studying = true;
 
+						// 置顶页面
+						CommonProject.scripts.render.methods.pin(this);
+
+						this.onConfigChange('volume', (val) => {
+							if (state.media) {
+								state.media.volume = parseFloat(val.toString());
+							}
+						});
+
+						this.onConfigChange('playbackRate', (val) => {
+							if (state.media) {
+								state.media.playbackRate = parseFloat(val.toString());
+							}
+						});
+
 						await waitForLoad();
 
 						setTimeout(() => {
@@ -148,8 +177,26 @@ export const ZJYProject = Project.create({
 						}, 3000);
 
 						await waitForLoad();
+						// 加载课程数据
+						const classId = new URL(window.location.href).searchParams.get('classId') ?? '';
+						if (!classId) {
+							$message.error({ content: '获取课程数据失败，请手动刷新页面' });
+							return;
+						}
+						const not_same_class =
+							!ZJYProject.scripts.study.cfg.currentClassId || ZJYProject.scripts.study.cfg.currentClassId !== classId;
 
-						const courseInfo = await start();
+						// 如果课程不一致，或者没有课程数据，则重新获取课程数据
+						if (not_same_class || !ZJYProject.scripts.study.cfg.courseData) {
+							const courseData = await getCourseData();
+							if (!courseData) {
+								return;
+							}
+							ZJYProject.scripts.study.cfg.currentClassId = classId;
+							ZJYProject.scripts.study.cfg.courseData = courseData;
+						}
+
+						const courseInfo = ZJYProject.scripts.study.cfg.courseData.find((i) => i.id === id);
 
 						if (!courseInfo) {
 							$console.error('获取课程信息失败，请跟作者反馈。');
@@ -157,24 +204,32 @@ export const ZJYProject = Project.create({
 						}
 
 						const started_url = window.location.href;
-
-						$message.success({ content: '开始学习：' + courseInfo.fileType + '-' + courseInfo.name });
-						$console.info('开始学习：' + courseInfo.fileType + '-' + courseInfo.name);
-						if (['ppt', 'doc', 'pptx', 'docx', 'pdf', 'txt'].some((i) => courseInfo.fileType === i)) {
-							await watchFile();
-						} else if (['video', 'audio', 'mp4', 'mp3', 'flv'].some((i) => courseInfo.fileType === i)) {
+						let msg = '开始学习：' + courseInfo.fileType + '-' + courseInfo.name;
+						$message.success(msg);
+						$console.info(msg);
+						if (['ppt', 'doc', 'pptx', 'docx', 'pdf', 'txt', 'ppt文档'].some((i) => courseInfo.fileType === i)) {
+							await watchFile(courseInfo.fileType === 'ppt文档' ? 'new-ppt' : 'ppt');
+						} else if (['video', 'audio', 'mp4', 'mp3', 'flv', '视频'].some((i) => courseInfo.fileType === i)) {
 							if ($el('.guide')?.innerHTML.includes('很抱歉，您的浏览器不支持播放此类文件')) {
-								$console.error(`任务点 ${courseInfo.name}，不支持播放。`);
+								msg = `任务点 ${courseInfo.name}，不支持播放。`;
+								$message.error(msg);
+								$console.error(msg);
 							} else {
-								await watchMedia(this.cfg.volume);
+								await watchMedia();
 							}
-						} else if (['png', 'jpg'].some((i) => courseInfo.fileType === i)) {
-							$console.info(`已查看图片任务点 ${courseInfo.name}，即将跳过。`);
+						} else if (['png', 'jpg', '图片'].some((i) => courseInfo.fileType === i)) {
+							msg = `已查看图片任务点 ${courseInfo.name}，即将跳过。`;
+							$message.info(msg);
+							$console.info(msg);
 						} else {
-							$console.error(`未知的任务点 ${courseInfo.name}，类型 ${courseInfo.fileType}，请跟作者进行反馈。`);
+							msg = `未知的任务点 ${courseInfo.name}，类型 ${courseInfo.fileType}，请跟作者进行反馈。`;
+							$message.error(msg);
+							$console.error(msg);
 						}
 						if (started_url === window.location.href) {
-							$console.info(courseInfo.name + ' 任务点结束，三秒后下一章');
+							msg = courseInfo.name + ' 任务点结束，三秒后下一章';
+							$message.info(msg);
+							$console.info(msg);
 							await $.sleep(3000);
 							await next();
 						}
@@ -212,68 +267,97 @@ export const ZJYProject = Project.create({
 	}
 });
 
-async function watchMedia(volume: number) {
+async function watchMedia() {
 	const media = await waitForMedia();
-	media.volume = volume;
+	media.volume = parseFloat(ZJYProject.scripts.study.cfg.volume.toString());
+	media.playbackRate = parseFloat(ZJYProject.scripts.study.cfg.playbackRate.toString());
+	state.media = media;
 	const success = await playMedia(() => media.play());
 	if (!success) {
 		return;
 	}
 
 	return new Promise<void>((resolve, reject) => {
-		const interval = setInterval(() => {
-			if (media.ended) {
-				clearInterval(interval);
-				resolve();
-			} else if (media.paused) {
-				media.play();
-			}
-		}, 1000);
+		media.addEventListener('ended', () => {
+			resolve();
+		});
+
+		media.addEventListener('pause', () => {
+			setTimeout(() => {
+				if (media.ended) {
+					resolve();
+				} else if (media.paused) {
+					media.play();
+					media.volume = parseFloat(ZJYProject.scripts.study.cfg.volume.toString());
+					media.playbackRate = parseFloat(ZJYProject.scripts.study.cfg.playbackRate.toString());
+				}
+			}, 1000);
+		});
 	});
 }
 
-async function watchFile() {
-	const vue = $el('.el-carousel')?.__vue__;
+async function watchFile(type: 'ppt' | 'new-ppt') {
+	const vue = $el('.guide')?.__vue__;
 	if (!vue) {
 		return;
 	}
-	for (let index = 0; index < vue.items.length; index++) {
-		await $.sleep(3000);
-		vue.next();
-	}
-}
 
-async function start(): Promise<CourseType | undefined> {
-	const vue = $el('.guide')?.__vue__;
-	const info = vue?.courseList?.id ? vue?.courseList : vue?.designData;
-	if (info?.id !== undefined) {
-		console.log('info', info);
-		return info;
-	} else {
-		return undefined;
+	while (true) {
+		const [current, total] =
+			document
+				.querySelector('.preview .page')
+				?.textContent?.trim()
+				// 旧版PPT任务，新版没有上一页和下一页
+				.replace('上一页', '')
+				.replace('下一页', '')
+				.split('/')
+				.map((i) => parseInt(i.trim())) || [];
+		if (!current || !total) {
+			break;
+		}
+		if (current >= total) {
+			break;
+		}
+		await $.sleep(1000);
+		// 旧版PPT任务，新版使用 skip
+		if (type === 'new-ppt') {
+			vue.skip && vue.skip();
+		} else {
+			vue.next && vue.next();
+		}
 	}
-}
-
-function getNextObject() {
-	return $el('.guide')?.__vue__?.nextObj;
 }
 
 async function next() {
-	const nextObject = getNextObject();
 	const id = new URL(window.location.href).searchParams.get('id');
-	if (id && nextObject?.id !== undefined) {
+	let nextObject: CourseType | undefined;
+	const data = ZJYProject.scripts.study.cfg.courseData;
+	for (let index = 0; index < data.length; index++) {
+		const item = data[index];
 		// 跳过讨论
-		if (['测验', '讨论'].some((i) => nextObject.fileType === i)) {
-			const res = await getCourseInfo(nextObject.id);
-			$console.info(`下个任务点为${nextObject.fileType}，即将跳过`);
-			await $.sleep(3000);
-			window.location.href = window.location.href.replace(id, res.data.next.id);
-		} else {
-			// 旧版本
-			$el('.preOrNext .next .el-link')?.click();
-			// 2024/8/10 更新
-			$el('.preOrNext .next')?.click();
+		if (['测验', '讨论'].some((i) => item.fileType === i)) {
+			continue;
 		}
+		if (item.id === id) {
+			nextObject = data[index + 1];
+			break;
+		}
+	}
+
+	if (id && nextObject) {
+		const vue = $el('.guide')?.__vue__;
+		// 如果有 nextObj 数据则代表可以点击下一节按钮，否则需要根据全局数据去进行查找跳转
+		// 使用自带的跳转功能更加兼容，防止数据错乱（使用url跳转学习记录可能会不一致）
+		// 这里根据判断ID是否相同，否则强制跳过讨论或者测验
+		if (vue?.nextObj?.id && nextObject.id === vue.nextObj.id) {
+			vue.preNext(vue.nextObj);
+			return;
+		}
+
+		await $.sleep(3000);
+		const url = new URL(window.location.href);
+		url.searchParams.set('id', nextObject.id);
+		window.location.replace(url.href);
 	} else {
 		$message.success({
 			duration: 0,
@@ -286,6 +370,82 @@ async function next() {
 		});
 		state.studying = false;
 	}
+}
+
+async function getCourseData() {
+	const progress = h('div');
+	const modal_content = h('div', [
+		h('div', { className: 'notes card' }, [
+			$ui.notes([
+				'职教云由于大章节之间无自动下一节按钮，需要在课程开始前',
+				'由程序读取全部章节数据，这样才能自动运行',
+				'数据只需读取一遍即可，后续无需重新读取'
+			])
+		]),
+		progress
+	]);
+	let force_pause = false;
+	const modal = $modal.confirm({
+		content: modal_content,
+		maskCloseable: false,
+		title: '正在获取课程数据中，请勿操作...',
+		confirmButton: null,
+		cancelButtonText: '强制暂停',
+		onCancel() {
+			force_pause = true;
+		}
+	});
+
+	const kejianListEl = document.querySelector<HTMLElement>('.kejianList');
+	if (!kejianListEl) {
+		$message.error({ content: '获取课程数据失败，请手动刷新页面' });
+		return undefined;
+	}
+	if (kejianListEl.style.display === 'none') {
+		document.querySelector<HTMLElement>('div.topTitle > div.courseBtn > div:nth-child(2)')?.click();
+		await $.sleep(1000);
+	}
+
+	// 持续递归获取课程数据，直到获取完成为止
+	const folders: HTMLElement[] = [];
+	while (true) {
+		const itemsElList = Array.from(document.querySelectorAll<HTMLElement>('.items'));
+		const unsaved = itemsElList.find((item) => folders.includes(item) === false);
+		if (!unsaved) {
+			break;
+		}
+		if (force_pause) {
+			const err = '已强制暂停，请手动刷新页面后才能重新运行';
+			$message.error({ content: err, duration: 0 });
+			$modal.alert({ content: err });
+			return undefined;
+		}
+		folders.push(unsaved);
+		if (modal) {
+			progress.innerHTML = '<br><b>当前已获取 ' + document.querySelectorAll('.fIteml').length + ' 个小节</b>';
+		}
+		unsaved.click();
+
+		await $.sleep(2000);
+	}
+	modal?.remove();
+	// @ts-ignore
+	const list = document.querySelector('.coursePreviewIndex').__vue__.list;
+	const data: CourseType[] = [];
+	const temp = JSON.parse(JSON.stringify(list));
+	while (temp.length > 0) {
+		const item = temp.shift();
+		if (item?.children) {
+			temp.unshift(...item.children);
+		} else {
+			data.push({
+				name: item.name,
+				id: item.id,
+				fileType: item.fileType
+			});
+		}
+	}
+	return data;
 }
 
 async function waitForLoad() {
@@ -417,14 +577,4 @@ function workOrExam(
 		});
 
 	return worker;
-}
-
-function getCourseInfo(id: string) {
-	return fetch('https://zyk.icve.com.cn/prod-api/teacher/courseContent/' + id, {
-		headers: {
-			accept: 'application/json, text/plain, */*',
-			authorization: 'Bearer ' + (document.cookie.match(/Token=([^;]+)/)?.[1] ?? '')
-		},
-		method: 'GET'
-	}).then((res) => res.json());
 }
