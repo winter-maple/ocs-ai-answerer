@@ -40,21 +40,27 @@ export async function waitForMedia(options?: {
 	}
 }
 
-export function waitForElement(selector: string) {
+export function waitForElement(
+	selector: string | { (): HTMLElement | undefined },
+	opts?: { timeout_seconds?: number }
+) {
 	return new Promise<HTMLElement | undefined>((resolve, reject) => {
+		let timeout: any;
 		const interval = setInterval(() => {
-			const el = document.querySelector<HTMLElement>(selector);
+			const el = typeof selector === 'function' ? selector() : document.querySelector<HTMLElement>(selector);
 			if (el) {
 				clearInterval(interval);
-				clearTimeout(timeout);
+				timeout && clearTimeout(timeout);
 				resolve(el);
 			}
 		}, 1000);
 
 		// 超时跳过
-		const timeout = setTimeout(() => {
-			clearInterval(interval);
-			resolve(undefined);
-		}, 10 * 1000);
+		if (opts?.timeout_seconds) {
+			timeout = setTimeout(() => {
+				clearInterval(interval);
+				resolve(undefined);
+			}, (opts?.timeout_seconds || 10) * 1000);
+		}
 	});
 }
