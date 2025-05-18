@@ -394,6 +394,26 @@ async function next() {
 }
 
 async function getCourseData() {
+	const getDataList = () => {
+		// @ts-ignore
+		const list = document.querySelector('.coursePreviewIndex')?.__vue__?.list || [];
+		const data: CourseType[] = [];
+		const temp = JSON.parse(JSON.stringify(list));
+		while (temp.length > 0) {
+			const item = temp.shift();
+			if (item?.children?.length > 0) {
+				temp.unshift(...item.children);
+			} else {
+				data.push({
+					name: item.name,
+					id: item.id,
+					fileType: item.fileType
+				});
+			}
+		}
+		return data;
+	};
+
 	// 资源库的课程可直接获取
 	// 新职教云的课程数据需要每个列表展开才能读取到
 	if (isZyk() === false) {
@@ -440,6 +460,14 @@ async function getCourseData() {
 			if (!unsaved) {
 				break;
 			}
+			const list = getDataList();
+			// 不是文件夹不点
+			const course_info = list.find((item) => item.name.trim() === unsaved.textContent?.trim());
+
+			if (!course_info || ['父节点', '子节点'].includes(course_info.fileType) === false) {
+				folders.push(unsaved);
+				continue;
+			}
 			if (force_pause) {
 				const err = '已强制暂停，请手动刷新页面后才能重新运行';
 				$message.error({ content: err, duration: 0 });
@@ -458,23 +486,8 @@ async function getCourseData() {
 		}
 		modal?.remove();
 	}
-	// @ts-ignore
-	const list = document.querySelector('.coursePreviewIndex').__vue__.list;
-	const data: CourseType[] = [];
-	const temp = JSON.parse(JSON.stringify(list));
-	while (temp.length > 0) {
-		const item = temp.shift();
-		if (item?.children?.length > 0) {
-			temp.unshift(...item.children);
-		} else {
-			data.push({
-				name: item.name,
-				id: item.id,
-				fileType: item.fileType
-			});
-		}
-	}
-	return data;
+
+	return getDataList();
 }
 
 function waitForLoad() {
