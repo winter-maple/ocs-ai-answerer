@@ -200,7 +200,9 @@ export const ZJYProject = Project.create({
 						const courseInfo = ZJYProject.scripts.study.cfg.courseList.find((i) => i.id === id);
 
 						if (!courseInfo) {
-							$console.error('获取课程信息失败，请跟作者反馈。');
+							const err = '获取课程信息失败，请手动刷新页面';
+							$message.error({ content: err, duration: 0 });
+							$console.error(err);
 							return;
 						}
 
@@ -462,7 +464,8 @@ async function getCourseData() {
 			}
 			const list = getDataList();
 			// 不是文件夹不点
-			const course_info = list.find((item) => item.name.trim() === unsaved.textContent?.trim());
+			const course_info = list.find((item) => item.name.trim() === unsaved.querySelector('.tit')?.textContent?.trim());
+			console.log('course_info', unsaved.textContent);
 
 			if (!course_info || ['父节点', '子节点'].includes(course_info.fileType) === false) {
 				folders.push(unsaved);
