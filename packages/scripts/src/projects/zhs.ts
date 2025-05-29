@@ -756,6 +756,15 @@ export const ZHSProject = Project.create({
 						'掌握度自动答题请学习完成后自行手动点击进入'
 					]).outerHTML
 				},
+				switchMode: {
+					label: '跳转模式',
+					tag: 'select',
+					defaultValue: 'job' as 'job' | 'all',
+					options: [
+						['job', '只跳转必学章节', '章节后面有必学，并且必学数量未完成的章节，如果全部完成将停止学习'],
+						['all', '顺序跳转']
+					]
+				},
 				restudy: restudy,
 				volume: volume,
 				definition: definition,
@@ -782,7 +791,7 @@ export const ZHSProject = Project.create({
 				return {
 					start: async () => {
 						if (location.href.includes('smartcoursestudent.zhihuishu.com/learnPage') === false) {
-							$message.info({ content: '请点击任意章节开始进行自动学习' });
+							$message.info({ content: '请点击任意章节开始进行自动学习', duration: 60 });
 							return;
 						}
 						// 置顶当前脚本
@@ -832,13 +841,22 @@ export const ZHSProject = Project.create({
 							for (let index = 0; index < infos.length; index++) {
 								const info = infos[index];
 								const text = info.querySelector('.collapse-info-progress .progress-text')?.textContent || '';
-								const [progress, total] = text
-									.replace('必学', '')
-									.trim()
-									.split('/')
-									.map((s) => parseInt(s));
-								if (progress < total) {
-									works.push({ progress, total, info });
+
+								if (this.cfg.switchMode === 'all') {
+									works.push({
+										info,
+										progress: 0,
+										total: 1
+									});
+								} else {
+									const [progress, total] = text
+										.replace('必学', '')
+										.trim()
+										.split('/')
+										.map((s) => parseInt(s));
+									if (progress < total) {
+										works.push({ progress, total, info });
+									}
 								}
 							}
 							let start = false;
@@ -850,7 +868,7 @@ export const ZHSProject = Project.create({
 									}
 								}
 								if (work.info.classList.contains('active')) {
-									if (this.cfg.restudy) {
+									if (this.cfg.switchMode === 'all') {
 										return works[index + 1].info;
 									} else {
 										start = true;
