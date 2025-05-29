@@ -8,6 +8,7 @@ import { CommonProject } from './common';
 import { commonWork, simplifyWorkResult } from '../utils/work';
 
 type CourseType = {
+	levelName: string;
 	fileType: string;
 	id: string;
 	name: string;
@@ -188,7 +189,11 @@ export const ZJYProject = Project.create({
 							ZJYProject.scripts.study.cfg.currentCourseId !== courseId;
 
 						// 如果课程不一致，或者没有课程数据，则重新获取课程数据
-						if (not_same_class || !ZJYProject.scripts.study.cfg.courseList) {
+						if (
+							not_same_class ||
+							!ZJYProject.scripts.study.cfg.courseList ||
+							ZJYProject.scripts.study.cfg.courseList.length === 0
+						) {
 							const courseData = await getCourseData();
 							if (!courseData) {
 								return;
@@ -409,7 +414,8 @@ async function getCourseData() {
 				data.push({
 					name: item.name,
 					id: item.id,
-					fileType: item.fileType
+					fileType: item.fileType,
+					levelName: item.levelName || ''
 				});
 			}
 		}
@@ -464,8 +470,11 @@ async function getCourseData() {
 			}
 			const list = getDataList();
 			// 不是文件夹不点
-			const course_info = list.find((item) => item.name.trim() === unsaved.querySelector('.tit')?.textContent?.trim());
-			console.log('course_info', unsaved.textContent);
+			const course_info = list.find((item) =>
+				// 子章节中间有空格拼接， 大章节没有
+				RegExp(`${item.levelName ? item.levelName + '\\s*' : ''}${item.name}`).test(unsaved.textContent?.trim() || '')
+			);
+			console.log(course_info);
 
 			if (!course_info || ['父节点', '子节点'].includes(course_info.fileType) === false) {
 				folders.push(unsaved);
