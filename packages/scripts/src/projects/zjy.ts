@@ -1,6 +1,6 @@
 import { $, OCSWorker, defaultAnswerWrapperHandler } from '@ocsjs/core';
 import { Project, Script, $ui, $el, $message, $modal, h } from 'easy-us';
-import { playbackRate, volume } from '../utils/configs';
+import { volume } from '../utils/configs';
 import { waitForMedia, waitForElement } from '../utils/study';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { $console } from './background';
