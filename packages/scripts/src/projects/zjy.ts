@@ -470,11 +470,11 @@ async function getCourseData() {
 			}
 			const list = getDataList();
 			// 不是文件夹不点
-			const course_info = list.find((item) =>
-				// 子章节中间有空格拼接， 大章节没有
-				RegExp(`${item.levelName ? item.levelName + '\\s*' : ''}${item.name}`).test(unsaved.textContent?.trim() || '')
+			const course_info = list.find(
+				(item) =>
+					// 子章节中间有空格拼接， 大章节没有
+					`${item.levelName || ''}${item.name}`.replace(/\s/g, '') === (unsaved.textContent?.trim() || '')
 			);
-			console.log(course_info);
 
 			if (!course_info || ['父节点', '子节点'].includes(course_info.fileType) === false) {
 				folders.push(unsaved);
@@ -494,7 +494,7 @@ async function getCourseData() {
 			}
 			unsaved.click();
 
-			await $.sleep(2000);
+			await $.sleep(1000);
 		}
 		modal?.remove();
 	}
