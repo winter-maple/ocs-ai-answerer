@@ -126,13 +126,15 @@ export const ZJYProject = Project.create({
 					]).outerHTML
 				},
 				volume: volume,
-				playbackRate: (() => {
-					playbackRate.options = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4, 6, 8].map((rate) => [
+				playbackRate: {
+					label: '视频倍速',
+					tag: 'select',
+					options: [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4, 6, 8].map((rate) => [
 						rate.toString(),
 						rate + ' x'
-					]);
-					return playbackRate;
-				})(),
+					]),
+					defaultValue: '1'
+				},
 				currentCourseId: {
 					defaultValue: ''
 				},
