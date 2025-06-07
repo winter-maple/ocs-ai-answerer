@@ -20,7 +20,7 @@ if (
 ) {
 	const open = confirm(
 		`OCS网课脚本不支持当前的脚本管理器（${GM_info.scriptHandler}）。` +
-			'请前往 https://docs.ocsjs.com/docs/script 下载指定的脚本管理器，例如 “Scriptcat 脚本猫” 或者 “Tampermonkey 油猴”'
+		'请前往 https://docs.ocsjs.com/docs/script 下载指定的脚本管理器，例如 “Scriptcat 脚本猫” 或者 “Tampermonkey 油猴”'
 	);
 
 	if (open) {
@@ -47,9 +47,6 @@ const infos = GM_info;
 			defaultPanelName: CommonProject.scripts.guide.namespace,
 			title: `OCS-${infos.script.version}`
 		},
-		updatePage:
-			GM_info.scriptHandler === 'Tampermonkey'
-				? 'https://greasyfork.org/zh-CN/scripts/457151'
-				: 'https://scriptcat.org/script-show-page/367'
+		updatePage: 'https://docs.ocsjs.com/docs/update'
 	});
 })();
