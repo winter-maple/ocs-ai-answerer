@@ -475,7 +475,8 @@ async function getCourseData() {
 			const course_info = list.find(
 				(item) =>
 					// 子章节中间有空格拼接， 大章节没有
-					`${item.levelName || ''}${item.name}`.replace(/\s/g, '') === (unsaved.textContent?.trim() || '')
+					`${item.levelName || ''}${item.name}`.replace(/\s/g, '') ===
+					(unsaved.textContent?.trim().replace(/\s/g, '') || '')
 			);
 
 			if (!course_info || ['父节点', '子节点'].includes(course_info.fileType) === false) {
