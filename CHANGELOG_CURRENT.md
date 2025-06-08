@@ -1,9 +1,9 @@
-## [4.9.85](https://github.com/ocsjs/ocsjs/compare/4.9.84...4.9.85) (2025-06-08)
+## [4.9.86](https://github.com/ocsjs/ocsjs/compare/4.9.85...4.9.86) (2025-06-08)
 
 
 ### Bug Fixes
 
-* **script:** 修复职教云获取数据错误的问题 ([5565799](https://github.com/ocsjs/ocsjs/commit/55657994c8716647ae62f3ce510ba9f91747665d))
+* **script:** 添加职教云卡死提示解决方法 ([05493be](https://github.com/ocsjs/ocsjs/commit/05493be36f61db90f1fa1d007dc8ef4b63f38a71))
 
 
 
