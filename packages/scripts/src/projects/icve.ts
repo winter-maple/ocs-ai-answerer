@@ -23,6 +23,11 @@ const state = {
 	}
 };
 
+const $msg_and_log = (type: 'info' | 'warn' | 'error', msg: string) => {
+	$message[type](msg);
+	$console[type](msg);
+};
+
 /**
  * 学习锁，用于判断是否可以学习，防止学习函数被多次调用
  */
@@ -48,6 +53,7 @@ export const IcveMoocProject = Project.create({
 	name: '智慧职教',
 	domains: [
 		'icve.com.cn',
+		'ai.icve.com.cn',
 		'course.icve.com.cn',
 		// 智慧职教套壳
 		'courshare.cn',
@@ -413,7 +419,7 @@ export const IcveMoocProject = Project.create({
 				}
 			},
 			async oncomplete() {
-				$message.info('自动答题时请勿切换题目，否则可能导致重复搜题或者脚本卡主。');
+				$message.warn({ content: '自动答题时请勿切换题目，否则可能导致重复搜题或者脚本卡主。', duration: 0 });
 
 				// 回到第一题
 				const resetToBegin = () => {
@@ -452,9 +458,301 @@ export const IcveMoocProject = Project.create({
 					}, 3000);
 				}
 			}
+		}),
+		'ai-study': new Script({
+			name: '✍️ AI课程',
+			namespace: 'icve.ai.study',
+			matches: [
+				['课程页面', 'ai.icve.com.cn/app/coursedetails-excellent'],
+				['学习页面', 'ai.icve.com.cn/excellent-study']
+			],
+			configs: {
+				notes: {
+					defaultValue: $ui.notes([
+						[
+							'如果脚本卡死或者您不想学习，',
+							'可以点击其他任意章节继续进行学习。',
+							'PPT请勿加快点击，否则可能无法记录学习进度。'
+						]
+					]).outerHTML
+				},
+				volume: volume,
+				playbackRate: {
+					label: '视频倍速',
+					tag: 'select',
+					options: [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4, 6, 8, 16].map((rate) => [
+						rate.toString(),
+						rate + ' x'
+					]),
+					defaultValue: '1'
+				},
+				autoOpenAllChapter: {
+					label: '自动打开全部章节',
+					attrs: {
+						title: '如果没有打开全部章节，那么当任务点达到当前章节最后一个时将无法跳转到其他章节列表！',
+						type: 'checkbox'
+					},
+					defaultValue: true
+				},
+				restudy
+			},
+			async oncomplete() {
+				// 置顶页面
+				CommonProject.scripts.render.methods.pin(this);
+
+				if (location.href.includes('kcnr') === false) {
+					return;
+				}
+
+				this.onConfigChange('volume', (val) => {
+					if (state.study.currentMedia) {
+						state.study.currentMedia.volume = parseFloat(val.toString());
+					}
+				});
+
+				this.onConfigChange('playbackRate', (val) => {
+					if (state.study.currentMedia) {
+						state.study.currentMedia.playbackRate = parseFloat(val.toString());
+					}
+				});
+
+				// 等待加载
+				const waitForLoad = () => {
+					return new Promise<void>((resolve) => {
+						const check = () => {
+							if (document.querySelector('.contentBox')) {
+								resolve();
+							} else {
+								setTimeout(check, 100);
+							}
+						};
+						check();
+					});
+				};
+
+				// 删除是否继续学习的弹窗
+				const closeStudyContinueDialog = () => {
+					return new Promise<void>((resolve) => {
+						let stop = false;
+						const check = () => {
+							if (document.querySelector('.el-message-box__wrapper')) {
+								$el('.el-message-box__wrapper')?.remove();
+								$el('.v-modal')?.remove();
+								resolve();
+							} else {
+								!stop && setTimeout(check, 100);
+							}
+						};
+						check();
+
+						// 超时
+						setTimeout(() => {
+							stop = true;
+							resolve();
+						}, 3 * 1000);
+					});
+				};
+				await waitForLoad();
+				await closeStudyContinueDialog();
+				await waitForLoad();
+				await $.sleep(3000);
+
+				$msg_and_log('info', '即将打开全部章节列表，请稍等');
+				// 打开全部章节列表
+				const openAllChapter = async () => {
+					const model = $modal.simple({
+						maskCloseable: false,
+						footer: undefined,
+						content: '正在展开全部章节列表，请耐心等待不要操作...'
+					});
+
+					// 选择未展开的章节
+					const titles = Array.from(document.querySelectorAll<HTMLElement>('.one-title')).filter(
+						(el) => !el.querySelector('.zhankai')
+					);
+					const waitForChapterOpen = (title: HTMLElement) => {
+						return new Promise<void>((resolve) => {
+							let stop = false;
+							const check = () => {
+								const parent = title.parentElement?.parentElement;
+								const content = parent?.querySelector<HTMLElement>('.panel-content');
+								if (content?.style.display !== 'none' && (content?.querySelectorAll('.node').length || 0) > 0) {
+									resolve();
+								} else {
+									!stop && setTimeout(check, 100);
+								}
+							};
+							check();
+							// 超时
+							setTimeout(() => {
+								stop = true;
+								resolve();
+							}, 10 * 1000);
+						});
+					};
+					for (const title of titles) {
+						try {
+							title.querySelector<HTMLElement>('.jiantou')?.click();
+							title.focus();
+							title.scrollIntoView({ behavior: 'smooth', block: 'center' });
+							await waitForChapterOpen(title);
+							await $.sleep(1000);
+						} catch (e) {
+							$console.error('打开章节失败', e);
+						}
+					}
+
+					model?.remove();
+				};
+
+				if (this.cfg.autoOpenAllChapter) await openAllChapter();
+
+				let study_id = '';
+
+				document.querySelectorAll('.node').forEach((el) => {
+					el.addEventListener('click', () => {
+						study((study_id = Math.random().toString(36).substr(2, 9)));
+					});
+				});
+
+				const study = async (id: string) => {
+					$msg_and_log('info', '即将开始学习：' + ($el('.contentBox')?.__vue__.nrdata.name || '未知任务点'));
+					await $.sleep(3000);
+
+					await (async () => {
+						const active = document.querySelector<HTMLElement>('.panelList .node.active');
+						active?.focus();
+						active?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+						if (active?.querySelector('.wc') && !this.cfg.restudy) {
+							return $msg_and_log('info', '当前任务已完成，即将跳过');
+						}
+
+						const vue = $el('.FilePreview')?.__vue__;
+						const img = $el('.ql-editor');
+						const work = $el('.shiti');
+						if (work) {
+							// 做作业
+							return $msg_and_log('warn', '检测到当前为作业任务，请完成课程后手动进入自动答题。');
+						} else if (img) {
+							// 做作业
+							return $msg_and_log('warn', '检测到当前为图片任务，即将跳过');
+						} else {
+							if (!vue) {
+								return $message.error({ content: '获取课程数据失败，或者未知任务点，即将跳过' });
+							}
+
+							const watchOffice = async () => {
+								const total = vue.photoList.length;
+								for (let index = 0; index < total + 1; index++) {
+									if (id !== study_id) return;
+									vue.next();
+									await $.sleep(3000);
+								}
+							};
+
+							$message.info('开始学习');
+							if (['video', 'audio'].includes(vue.curType)) {
+								await closeStudyContinueDialog();
+								await watchMedia();
+							} else if (['office', 'ppt'].includes(vue.curType)) {
+								await watchOffice();
+								if (id !== study_id) return;
+								await $.sleep(1000);
+							} else {
+								$msg_and_log('warn', '未知的任务点，即将跳过');
+							}
+						}
+					})();
+					if (id !== study_id) return;
+
+					const next = getNext();
+					if (!next) {
+						return $msg_and_log('warn', '没有找到下一章节！');
+					}
+					$msg_and_log('info', '即将进入下一章节');
+					await $.sleep(3000);
+					if (id !== study_id) return;
+					next.click();
+				};
+
+				const getNext = () => {
+					const list = Array.from(document.querySelectorAll('.panelList .node'));
+					for (let index = 0; index < list.length; index++) {
+						const element = list[index];
+
+						if (element.classList.contains('active')) {
+							return list[index + 1] as HTMLElement | undefined;
+						}
+					}
+				};
+
+				study(study_id);
+			}
+		}),
+		'ai-work': new Script({
+			name: '✍️ AI作业',
+			namespace: 'icve.ai.work',
+			matches: [['作业页面', 'ai.icve.com.cn/preview-exam']],
+			configs: {
+				notes: {
+					defaultValue: $ui.notes([
+						'自动答题前请在 “通用-全局设置” 中设置题库配置。',
+						'可以搭配 “通用-在线搜题” 一起使用。',
+						'请手动进入作业考试页面才能使用自动答题。',
+						'自动答题时请勿切换题目，否则可能导致重复搜题或者脚本卡主！'
+					]).outerHTML
+				}
+			},
+			oncomplete() {
+				$message.warn({ content: '自动答题时请勿切换题目，否则可能导致重复搜题或者脚本卡主。', duration: 0 });
+
+				// 回到第一题
+				const resetToBegin = () => {
+					document.querySelectorAll<HTMLElement>(`.list-box span`).item(0)?.click();
+				};
+
+				commonWork(this, {
+					workerProvider: aiWork,
+					beforeRunning: async () => {
+						resetToBegin();
+						await $.sleep(1000);
+					},
+					onRestart: () => resetToBegin()
+				});
+			}
 		})
 	}
 });
+
+async function watchMedia() {
+	const media = await waitForMedia();
+	media.volume = parseFloat(IcveMoocProject.scripts['ai-study'].cfg.volume.toString());
+	media.playbackRate = parseFloat(IcveMoocProject.scripts['ai-study'].cfg.playbackRate.toString());
+	state.study.currentMedia = media;
+	const success = await playMedia(() => media.play());
+	if (!success) {
+		return;
+	}
+
+	return new Promise<void>((resolve, reject) => {
+		media.addEventListener('ended', () => {
+			resolve();
+		});
+
+		media.addEventListener('pause', () => {
+			setTimeout(() => {
+				if (media.ended) {
+					resolve();
+				} else if (media.paused) {
+					media.play();
+					media.volume = parseFloat(IcveMoocProject.scripts['ai-study'].cfg.volume.toString());
+					media.playbackRate = parseFloat(IcveMoocProject.scripts['ai-study'].cfg.playbackRate.toString());
+				}
+			}, 1000);
+		});
+	});
+}
 
 function work({ answererWrappers, period, thread, answerSeparators, answerMatchMode }: CommonWorkOptions) {
 	$message.info('开始作业');
@@ -631,7 +929,141 @@ function work({ answererWrappers, period, thread, answerSeparators, answerMatchM
 			}
 		}
 
-		$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+		$message.success({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+		worker.emit('done');
+		// 搜索完成后才会同步答案与题目的显示，防止题目错乱
+		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'icve';
+	})();
+
+	return worker;
+}
+
+function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatchMode }: CommonWorkOptions) {
+	$message.info('开始作业');
+	CommonProject.scripts.workResults.methods.init();
+
+	console.log({ answererWrappers, period, thread });
+
+	const titleTransform = (titles: (HTMLElement | undefined)[]) => {
+		return titles
+			.filter((t) => t?.innerText)
+			.map((t) => {
+				if (t) {
+					return t.innerText.trim();
+				}
+				return '';
+			})
+			.join(',');
+	};
+
+	const workResults: SimplifyWorkResult[] = [];
+	let totalQuestionCount = 0;
+	let requestedCount = 0;
+	let resolvedCount = 0;
+
+	function getType(options: HTMLElement[]) {
+		const radio_len = options
+			.map((o) => o.querySelector('[type="radio"]'))
+			.reduce((a, b) => {
+				return a + (b ? 1 : 0);
+			}, 0);
+
+		return radio_len > 0
+			? radio_len === 2
+				? 'judgement'
+				: 'single'
+			: options.some((o) => o.querySelector('[type="checkbox"]'))
+			? 'multiple'
+			: options.some((o) => o.querySelector('textarea'))
+			? 'completion'
+			: options.some((o) => o.querySelector('.fillblank_input input'))
+			? 'fill-blank'
+			: undefined;
+	}
+
+	const worker = new OCSWorker({
+		root: '.content-item',
+		elements: {
+			title: '.questions-content [class*=title-content]',
+			options: 'label[class*=group-item]'
+		},
+		thread: thread ?? 1,
+		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
+		answerMatchMode: answerMatchMode,
+		/** 默认搜题方法构造器 */
+		answerer: (elements, ctx) => {
+			const title = titleTransform(elements.title);
+			if (title) {
+				return CommonProject.scripts.apps.methods.searchAnswerInCaches(title, async () => {
+					await $.sleep((period ?? 3) * 1000);
+					return defaultAnswerWrapperHandler(answererWrappers, {
+						type: getType(ctx.elements.options) || 'unknown',
+						title,
+						options: ctx.elements.options.map((o) => o.innerText).join('\n')
+					});
+				});
+			} else {
+				throw new Error('题目为空，请查看题目是否为空，或者忽略此题');
+			}
+		},
+		work: {
+			async handler(type, answer, option, ctx) {
+				if (type === 'judgement' || type === 'single' || type === 'multiple') {
+					// 这里只用判断多选题是否选中，如果选中就不用再点击了，单选题是 radio，所以不用判断。
+					if (option.querySelector('.ivu-radio-checked') === null) {
+						option?.click();
+					}
+				} else if (type === 'completion' && answer.trim()) {
+				}
+			}
+		},
+		onElementSearched(elements, root) {
+			console.log('elements', elements);
+		},
+
+		/**
+		 * 因为校内课的考试和作业都是一题一题做的，不像其他自动答题一样可以获取全部试卷内容。
+		 * 所以只能根据自定义的状态进行搜索结果的显示。
+		 */
+		onResultsUpdate(currentResult) {
+			if (currentResult.resolved) {
+				workResults.push(...simplifyWorkResult([currentResult], titleTransform));
+				CommonProject.scripts.workResults.methods.setResults(workResults);
+				totalQuestionCount++;
+				requestedCount++;
+				resolvedCount++;
+
+				if (currentResult.result?.finish) {
+					CommonProject.scripts.apps.methods.addQuestionCacheFromWorkResult(
+						simplifyWorkResult([currentResult], titleTransform)
+					);
+				}
+				CommonProject.scripts.workResults.methods.updateWorkState({
+					totalQuestionCount,
+					requestedCount,
+					resolvedCount
+				});
+			}
+		}
+	});
+
+	const getNextBtn = () => document.querySelector('div.center_btn > button:nth-child(2)') as HTMLElement;
+	let next = getNextBtn();
+
+	(async () => {
+		while (next && worker.isClose === false) {
+			await worker.doWork({ enable_debug: true });
+			await $.sleep(1000);
+			next = getNextBtn();
+			if (next.getAttribute('disabled')) {
+				break;
+			} else {
+				next?.click();
+				await $.sleep(1000);
+			}
+		}
+
+		$message.success({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
 		worker.emit('done');
 		// 搜索完成后才会同步答案与题目的显示，防止题目错乱
 		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'icve';
