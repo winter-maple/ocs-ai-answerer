@@ -1010,7 +1010,8 @@ export const ZHSProject = Project.create({
 			matches: [
 				['智慧课程作业页面', 'smartcourseexam.zhihuishu.com/ReviewExam'],
 				['智慧课程-掌握提升页面', 'studentexamcomh5.zhihuishu.com/studentReviewTestOrExam'],
-				['智慧课程-AI助教掌握度', 'fusioncourseh5.zhihuishu.com/exam']
+				['智慧课程-AI助教掌握度', 'fusioncourseh5.zhihuishu.com/exam'],
+				['智慧课程-新AI助教掌握度', 'studywisdomh5.zhihuishu.com/exam']
 			],
 			namespace: 'zhs.smart.work',
 			configs: {
@@ -1029,18 +1030,28 @@ export const ZHSProject = Project.create({
 				return {
 					start: async () => {
 						await $.sleep(3000);
+						// 检查是否为软件环境
 
-						// 检查是否为软件环境
-						const remotePage = await RemotePlaywright.getCurrentPage();
-						// 检查是否为软件环境
-						if (!remotePage) {
-							return $playwright.showError();
+						let remotePage: RemotePage | undefined = undefined;
+						// 掌握度
+						let is_zwd = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'].some((domain) =>
+							location.href.includes(domain)
+						);
+						if (is_zwd) {
+							// 这两个页面不需要软件辅助
+						} else {
+							remotePage = await RemotePlaywright.getCurrentPage();
+							// 检查是否为软件环境
+							if (!remotePage) {
+								return $playwright.showError();
+							}
 						}
+
 						$message.warn({ content: '即将开始答题，答题完毕之前请勿操作页面！', duration: 0 });
 						setTimeout(() => {
 							commonWork(this, {
 								workerProvider: (opts) => {
-									if (location.href.includes('fusioncourseh5.zhihuishu.com/exam')) {
+									if (is_zwd) {
 										return fusioncourseWork(remotePage, opts);
 									} else {
 										return smartWork(remotePage, opts);
