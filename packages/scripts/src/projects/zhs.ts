@@ -1032,9 +1032,9 @@ export const ZHSProject = Project.create({
 						await $.sleep(3000);
 						// 检查是否为软件环境
 
-						let remotePage: RemotePage | undefined = undefined;
+						let remotePage: RemotePage | undefined;
 						// 掌握度
-						let is_zwd = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'].some((domain) =>
+						const is_zwd = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'].some((domain) =>
 							location.href.includes(domain)
 						);
 						if (is_zwd) {

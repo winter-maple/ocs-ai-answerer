@@ -1014,6 +1014,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 						option?.click();
 					}
 				} else if (type === 'completion' && answer.trim()) {
+					// 尚未支持
 				}
 			}
 		},
