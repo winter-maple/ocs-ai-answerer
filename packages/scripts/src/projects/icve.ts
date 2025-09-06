@@ -460,7 +460,7 @@ export const IcveMoocProject = Project.create({
 			}
 		}),
 		'ai-study': new Script({
-			name: '✍️ AI课程',
+			name: '🖥️ AI课程',
 			namespace: 'icve.ai.study',
 			matches: [
 				['课程页面', 'ai.icve.com.cn/app/coursedetails-excellent'],
@@ -496,13 +496,19 @@ export const IcveMoocProject = Project.create({
 				},
 				restudy
 			},
-			async oncomplete() {
-				// 置顶页面
-				CommonProject.scripts.render.methods.pin(this);
-
-				if (location.href.includes('kcnr') === false) {
+			// historychange 不知道为什么会触发很多次在 kcnr 课程页面，这里直接 reload，让脚本加载 oncomplete 函数
+			onhistorychange(type) {
+				if (type !== 'replace') {
 					return;
 				}
+				if (location.href.includes('kcnr')) {
+					location.reload();
+					return;
+				}
+			},
+			async oncomplete(type) {
+				// 置顶页面
+				CommonProject.scripts.render.methods.pin(this);
 
 				this.onConfigChange('volume', (val) => {
 					if (state.study.currentMedia) {
