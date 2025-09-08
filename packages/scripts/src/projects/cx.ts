@@ -143,7 +143,8 @@ export const CXProject = Project.create({
 		'neauce.com',
 		'zhihui-yun.com',
 		'cqie.cn',
-		'ccqmxx.com'
+		'ccqmxx.com',
+		'jxgmxy.com'
 	],
 	scripts: {
 		guide: new Script({
