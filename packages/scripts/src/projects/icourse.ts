@@ -3,7 +3,7 @@ import { $message, Project, Script, $ui } from 'easy-us';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { CommonProject } from './common';
 import { commonWork, optimizationElementWithImage, removeRedundantWords, simplifyWorkResult } from '../utils/work';
-import { $console } from './background';
+import { $console, BackgroundProject } from './background';
 import { $playwright } from '../utils/app';
 import { waitForElement, waitForMedia } from '../utils/study';
 import { playbackRate, volume, workNotes } from '../utils/configs';
@@ -132,7 +132,7 @@ export const ICourseProject = Project.create({
 					main: async (canRun: () => boolean) => {
 						CommonProject.scripts.render.methods.pin(this);
 
-						const remotePage = await RemotePlaywright.getCurrentPage();
+						const remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
 						// 检查是否为软件环境
 						if (!remotePage) {
 							return $playwright.showError();
@@ -322,7 +322,9 @@ export const ICourseProject = Project.create({
 					$render.moveToEdge();
 
 					// 检查是否为软件环境
-					const remotePage = await RemotePlaywright.getCurrentPage();
+					const remotePage = await RemotePlaywright.getCurrentPage({
+						show_debug_cursor: BackgroundProject.scripts.dev.cfg.show_debug_cursor
+					});
 					// 检查是否为软件环境
 					if (!remotePage) {
 						return $playwright.showError();

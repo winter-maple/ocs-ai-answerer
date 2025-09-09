@@ -1,77 +1,77 @@
 import type { Page } from 'playwright-core';
 import { request } from '../core/utils';
 import { $ } from './common';
+import { $const, $elements, $gm, $ui } from 'easy-us';
 
 export type Base64 = string;
 
+interface ClickOptions {
+	/**
+	 * Defaults to `left`.
+	 */
+	button?: 'left' | 'right' | 'middle';
+
+	/**
+	 * defaults to 1. See [UIEvent.detail].
+	 */
+	clickCount?: number;
+
+	/**
+	 * Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
+	 */
+	delay?: number;
+
+	/**
+	 * Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
+	 */
+	force?: boolean;
+
+	/**
+	 * Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores
+	 * current modifiers back. If not specified, currently pressed modifiers are used.
+	 */
+	modifiers?: Array<'Alt' | 'Control' | 'Meta' | 'Shift'>;
+
+	/**
+	 * Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You
+	 * can opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as
+	 * navigating to inaccessible pages. Defaults to `false`.
+	 */
+	noWaitAfter?: boolean;
+
+	/**
+	 * A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of
+	 * the element.
+	 */
+	position?: {
+		x: number;
+
+		y: number;
+	};
+
+	/**
+	 * When true, the call requires selector to resolve to a single element. If given selector resolves to more than one
+	 * element, the call throws an exception.
+	 */
+	strict?: boolean;
+
+	/**
+	 * Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout`
+	 * option in the config, or by using the
+	 * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+	 * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout) methods.
+	 */
+	timeout?: number;
+
+	/**
+	 * When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults
+	 * to `false`. Useful to wait until the element is ready for the action without performing it.
+	 */
+	trial?: boolean;
+}
+
 export interface RemotePage {
-	click: (
-		selectorOrElement: string | Element,
-		options?: {
-			/**
-			 * Defaults to `left`.
-			 */
-			button?: 'left' | 'right' | 'middle';
-
-			/**
-			 * defaults to 1. See [UIEvent.detail].
-			 */
-			clickCount?: number;
-
-			/**
-			 * Time to wait between `mousedown` and `mouseup` in milliseconds. Defaults to 0.
-			 */
-			delay?: number;
-
-			/**
-			 * Whether to bypass the [actionability](https://playwright.dev/docs/actionability) checks. Defaults to `false`.
-			 */
-			force?: boolean;
-
-			/**
-			 * Modifier keys to press. Ensures that only these modifiers are pressed during the operation, and then restores
-			 * current modifiers back. If not specified, currently pressed modifiers are used.
-			 */
-			modifiers?: Array<'Alt' | 'Control' | 'Meta' | 'Shift'>;
-
-			/**
-			 * Actions that initiate navigations are waiting for these navigations to happen and for pages to start loading. You
-			 * can opt out of waiting via setting this flag. You would only need this option in the exceptional cases such as
-			 * navigating to inaccessible pages. Defaults to `false`.
-			 */
-			noWaitAfter?: boolean;
-
-			/**
-			 * A point to use relative to the top-left corner of element padding box. If not specified, uses some visible point of
-			 * the element.
-			 */
-			position?: {
-				x: number;
-
-				y: number;
-			};
-
-			/**
-			 * When true, the call requires selector to resolve to a single element. If given selector resolves to more than one
-			 * element, the call throws an exception.
-			 */
-			strict?: boolean;
-
-			/**
-			 * Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout`
-			 * option in the config, or by using the
-			 * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
-			 * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout) methods.
-			 */
-			timeout?: number;
-
-			/**
-			 * When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults
-			 * to `false`. Useful to wait until the element is ready for the action without performing it.
-			 */
-			trial?: boolean;
-		}
-	) => Promise<void>;
+	click: (selectorOrElement: string | Element, options?: ClickOptions) => Promise<void>;
 	check: Page['check'];
 	dblclick: Page['dblclick'];
 	bringToFront: Page['bringToFront'];
@@ -124,7 +124,10 @@ export class RemotePlaywright {
 	private static authToken = '';
 	private static currentPage: RemotePage | undefined = undefined;
 
-	static async getCurrentPage(logger: (...args: any[]) => void = console.debug): Promise<RemotePage | undefined> {
+	static async getCurrentPage(configs?: {
+		show_debug_cursor?: boolean;
+		logger?: (...args: any[]) => void;
+	}): Promise<RemotePage | undefined> {
 		if (this.currentPage) {
 			return this.currentPage;
 		}
@@ -138,47 +141,71 @@ export class RemotePlaywright {
 					method: 'get',
 					responseType: 'text'
 				});
-				this.currentPage = this.createRemotePage(this.authToken, logger);
+				this.currentPage = this.createRemotePage(this.authToken, configs);
 				return this.currentPage;
 			} catch (e) {
 				console.log(e);
 				return undefined;
 			}
 		} else {
-			this.currentPage = this.createRemotePage(this.authToken, logger);
+			this.currentPage = this.createRemotePage(this.authToken, configs);
 			return this.currentPage;
 		}
 	}
 
-	private static createRemotePage(authToken: string, logger?: (...args: any[]) => void) {
+	private static createRemotePage(
+		authToken: string,
+		configs?: { show_debug_cursor?: boolean; logger?: (...args: any[]) => void }
+	) {
 		const page = Object.create({});
+		configs = configs || {};
+		configs.logger = configs.logger || console.debug;
 		for (const property of ListOfActions) {
 			Reflect.set(page, property, async (...args: any[]) => {
 				let data;
-				if (property === 'click' && args[0] instanceof Element) {
-					args[0].scrollIntoView();
-					await $.sleep(1000);
-					const rect = args[0].getBoundingClientRect();
-					data = {
-						page: window.location.href,
-						property: 'mouse.click',
-						args: [
-							rect.left + rect.width / 2,
-							rect.top + rect.height / 2,
-							{
-								button: args[1]?.button,
-								clickCount: args[1]?.clickCount,
-								delay: args[1]?.delay
+
+				if (property === 'click') {
+					if (args[0] instanceof Element) {
+						const el = args[0] as HTMLElement;
+						const options = (args[1] || {}) as ClickOptions;
+
+						await scrollToElement(el);
+						// 显示鼠标位置
+						if (configs?.show_debug_cursor) {
+							showMousePointer(el);
+						}
+
+						const rect = el.getBoundingClientRect();
+						data = {
+							page: window.location.href,
+							property: 'mouse.click',
+							args: [
+								rect.left + rect.width / 2,
+								rect.top + rect.height / 2,
+								{
+									button: options.button,
+									clickCount: options.clickCount,
+									delay: options.delay
+								}
+							]
+						};
+					} else if (typeof args[0] === 'string') {
+						const el = document.querySelector(args[0]) as HTMLElement;
+						if (el) {
+							await scrollToElement(el);
+							// 显示鼠标位置
+							if (configs?.show_debug_cursor) {
+								showMousePointer(el);
 							}
-						]
-					};
+						}
+					}
 				}
 
 				if (!data) {
 					data = { page: window.location.href, property: property, args: args };
 				}
 
-				logger?.('[RP]: ', JSON.stringify(data));
+				configs?.logger?.('[RP]: ', JSON.stringify(data));
 
 				try {
 					// 这里为什么不写前缀 http://localhost:15319，因为有 Content-Security-Policy ， 这里我们借用后台的URL代理去进行处理，只要包含 ocs-script-actions 即可轻松绕过 Content-Security-Policy 限制
@@ -193,7 +220,7 @@ export class RemotePlaywright {
 					});
 					return res;
 				} catch (e) {
-					logger?.('[RP-ERROR]: ', JSON.stringify(data));
+					configs?.logger?.('[RP-ERROR]: ', JSON.stringify(data));
 					return undefined;
 				}
 			});
@@ -202,4 +229,31 @@ export class RemotePlaywright {
 
 		return page;
 	}
+}
+
+function scrollToElement(el: HTMLElement) {
+	el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	// 等待动作完成
+	return $.sleep(200);
+}
+
+function showMousePointer(el: HTMLElement) {
+	setTimeout(() => {
+		const rect = el.getBoundingClientRect();
+		// 显示鼠标位置
+		const div = document.createElement('div');
+		div.textContent = '';
+		div.style.position = 'fixed';
+		div.style.zIndex = '99999';
+		div.style.width = '20px';
+		div.style.height = '20px';
+		div.style.border = '3px solid red';
+		div.style.borderRadius = '50%';
+		div.style.left = rect.left + rect.width / 2 - 10 + 'px';
+		div.style.top = rect.top + rect.height / 2 - 10 + 'px';
+		document.body.append(div);
+		setTimeout(() => {
+			div.remove();
+		}, 500);
+	}, 200);
 }

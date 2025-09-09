@@ -1,4 +1,4 @@
-import { request } from '@ocsjs/core';
+import { RemotePlaywright, request } from '@ocsjs/core';
 import { $ui, $gm, $message, $modal, $store, Project, Script, StoreListenerType, h, $ } from 'easy-us';
 import semver_gt from 'semver/functions/gt';
 import semver_valid from 'semver/functions/valid';
@@ -437,7 +437,19 @@ export const BackgroundProject = Project.create({
 			configs: {
 				notes: {
 					defaultValue: '开发人员调试用。<br>注入OCS_CONTEXT全局变量。用户可忽略此页面。'
+				},
+				show_debug_cursor: {
+					defaultValue: true,
+					label: '软件辅助点击时显示鼠标位置',
+					attrs: { type: 'checkbox' }
 				}
+			},
+			methods() {
+				return {
+					getRemotePlaywrightCurrentPage: () => {
+						return RemotePlaywright.getCurrentPage({ show_debug_cursor: this.cfg.show_debug_cursor });
+					}
+				};
 			},
 			onrender({ panel }) {
 				const injectBtn = h('button', { className: 'base-style-button' }, '点击注入全局变量');
@@ -461,7 +473,7 @@ export const BackgroundProject = Project.create({
 					});
 				});
 
-				panel.body.replaceChildren(h('div', { className: 'card' }, [injectBtn, showTabDataBtn]));
+				panel.body.replaceChildren(h('div', { className: 'card' }, [h('hr'), injectBtn, showTabDataBtn]));
 			}
 		}),
 		appLoginHelper: new Script({
