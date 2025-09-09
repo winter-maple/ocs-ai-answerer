@@ -1,7 +1,6 @@
 import type { Page } from 'playwright-core';
 import { request } from '../core/utils';
 import { $ } from './common';
-import { $const, $elements, $gm, $ui } from 'easy-us';
 
 export type Base64 = string;
 
