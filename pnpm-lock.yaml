@@ -128,7 +128,7 @@ importers:
   packages/scripts:
     dependencies:
       '@ocsjs/core':
-        specifier: 4.0.3
+        specifier: workspace:*
         version: link:../core
       '@rollup/plugin-commonjs':
         specifier: ^24.0.0
