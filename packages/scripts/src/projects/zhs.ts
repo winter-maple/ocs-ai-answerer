@@ -10,7 +10,7 @@ import {
 	simplifyWorkResult
 } from '../utils/work';
 import { CommonWorkOptions, playMedia } from '../utils';
-import { $console } from './background';
+import { $console, BackgroundProject } from './background';
 import { waitForMedia } from '../utils/study';
 import { $playwright } from '../utils/app';
 import { $render } from '../utils/render';
@@ -46,7 +46,7 @@ interface ZHSProcessor {
 class StudyVideoH5 implements ZHSProcessor {
 	remotePage: RemotePage | undefined = undefined;
 	async init() {
-		this.remotePage = await RemotePlaywright.getCurrentPage();
+		this.remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
 		// 检查是否为软件环境
 		if (!this.remotePage) {
 			throw $playwright.showError();
@@ -74,6 +74,7 @@ class StudyVideoH5 implements ZHSProcessor {
 				return videoItems[i + (opts.next ? 1 : 0)];
 			}
 		}
+
 		return videoItems[0];
 	}
 
@@ -311,6 +312,113 @@ class StudyPlusH5 extends StudyVideoH5 implements ZHSProcessor {
 					submit_btn.click();
 				}
 			}
+		}
+
+		/**
+		 * 每过三秒递归检测是否有弹窗
+		 */
+		await $.sleep(3000);
+		await this.handleTestDialog(remotePage);
+	}
+}
+
+/**
+ * 2025-9月份新智慧学习页面，为智慧课程分类中的新课程
+ */
+class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
+	getCourseName() {
+		return $el('.course-name')?.textContent?.match(/课程名称：(.+)/)?.[1] || '无名称';
+	}
+
+	getChapterName(item: HTMLElement): string {
+		return item.parentElement?.textContent || '未知章节';
+	}
+
+	hasJob() {
+		return $$el('.category-wrapper .child')?.length > 0;
+	}
+
+	getNext(opts: { next: boolean; restudy: boolean }) {
+		let jobs = Array.from(document.querySelectorAll<HTMLElement>('.category-wrapper .child-info.hasvideo'));
+		console.log(jobs);
+		$console.log(JSON.stringify(opts));
+		// 如果不是复习模式，则排除掉已经完成的任务
+		if (!opts.restudy) {
+			jobs = jobs.filter((el) => {
+				if (el.querySelector('.finish-icon')) {
+					return false;
+				}
+				return true;
+			});
+		}
+
+		for (let i = 0; i < jobs.length; i++) {
+			const item = jobs[i];
+			if (item.classList.contains('current')) {
+				$console.log(opts.next, item.classList.toString(), item.textContent);
+				return jobs[i + (opts.next ? 1 : 0)];
+			}
+		}
+
+		$console.log(opts.next, jobs[0].classList.toString(), jobs[0].textContent);
+		return jobs[0];
+	}
+
+	hideDialog() {
+		/** 隐藏通知弹窗 */
+		$$el('.el-overlay,.el-dialog').forEach((dialog) => {
+			dialog.style.display = 'none';
+		});
+	}
+
+	async handleTestDialog(remotePage?: RemotePage) {
+		const question_box = $el('.question-body');
+		if (question_box) {
+			const options = $$el('.question-body .options .option');
+			$message.info('正在关闭弹窗测验...');
+			if (options.length !== 0) {
+				await waitForCaptcha();
+				// 最小化脚本窗口
+				CommonProject.scripts.render.methods.minimize();
+				CommonProject.scripts.render.methods.setPosition(100, 200);
+				// 随机选
+				const random = Math.floor(Math.random() * options.length);
+				await $.sleep(1000);
+				if (remotePage) {
+					await remotePage.click(options[random]);
+				} else {
+					options[random].click();
+				}
+
+				await $.sleep(1000);
+			}
+			await $.sleep(1000);
+
+			const submit_btn = $el('.submit-btn .submits');
+			if (submit_btn) {
+				if (remotePage) {
+					await remotePage.hover('.submit-btn .submits');
+					await remotePage.click('.submit-btn .submits');
+				} else {
+					submit_btn.click();
+				}
+			}
+
+			const close_btn = $el('.header-box .close-box');
+			if (close_btn) {
+				if (remotePage) {
+					await remotePage.hover('.header-box .close-box');
+					await remotePage.click('.header-box .close-box');
+				} else {
+					close_btn.click();
+				}
+			}
+
+			// 如果无法关闭弹窗，后续版本只能强制删除
+			// await $.sleep(1000);
+			// document.querySelector('.components-box.has-compoent')?.remove();
+			// document.querySelector('.transparent-mask')?.remove();
+			$message.info('弹窗测验已关闭');
 		}
 
 		/**
@@ -704,7 +812,7 @@ export const ZHSProject = Project.create({
 					getWorkInfo: getWorkInfo,
 					work: async () => {
 						// 检查是否为软件环境
-						const remotePage = await RemotePlaywright.getCurrentPage();
+						const remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
 						// 检查是否为软件环境
 						if (!remotePage) {
 							return $playwright.showError();
@@ -744,7 +852,9 @@ export const ZHSProject = Project.create({
 			name: '🖥️ 智慧课程-学习脚本',
 			matches: [
 				['智慧课程学习页面', 'smartcoursestudent.zhihuishu.com/learnPage'],
-				['智慧课程首页', 'smartcoursestudent.zhihuishu.com/singleCourse']
+				['智慧课程新域名学习页面', 'ai-smart-course-student-pro.zhihuishu.com/learnPage'],
+				['智慧课程首页', 'smartcoursestudent.zhihuishu.com/singleCourse'],
+				['智慧课程新域名课程首页', 'ai-smart-course-student-pro.zhihuishu.com/singleCourse']
 			],
 			namespace: 'zhs.smart.study',
 			configs: {
@@ -790,7 +900,7 @@ export const ZHSProject = Project.create({
 			methods() {
 				return {
 					start: async () => {
-						if (location.href.includes('smartcoursestudent.zhihuishu.com/learnPage') === false) {
+						if (location.href.includes('singleCourse')) {
 							$message.info({ content: '请点击任意章节开始进行自动学习', duration: 60 });
 							return;
 						}
@@ -1040,7 +1150,7 @@ export const ZHSProject = Project.create({
 						if (is_zwd) {
 							// 这两个页面不需要软件辅助
 						} else {
-							remotePage = await RemotePlaywright.getCurrentPage();
+							remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
 							// 检查是否为软件环境
 							if (!remotePage) {
 								return $playwright.showError();
@@ -1178,6 +1288,321 @@ export const ZHSProject = Project.create({
 					workerProvider: xnkWork
 				});
 			}
+		}),
+		'wisdom-study': new Script({
+			name: '🖥️ 新智慧学习-学习脚本',
+			matches: [['2025-9月新智慧学习页面', 'studywisdomh5.zhihuishu.com/study/index']],
+			namespace: 'zhs.wisdom.study',
+			configs: {
+				notes: {
+					defaultValue: $ui.notes([
+						'作业请大家观看完视频后手动打开。',
+						'不要最小化浏览器，可能导致脚本暂停。',
+						'掌握度和作业请视频看完后自行手动进入'
+					]).outerHTML
+				},
+				restudy: restudy,
+				skipStudyTimeWarnDialog: {
+					label: '忽略习惯分弹窗',
+					attrs: {
+						title: '如果课程有习惯分需要自行控制学习时长，如果忽略习惯分提示，则可能没有习惯分。',
+						type: 'checkbox'
+					},
+					defaultValue: false
+				},
+				reloadWhenError: {
+					label: '视频黑屏时自动刷新',
+					attrs: { type: 'checkbox', title: '当视频出现加载失败，或者黑屏等异常时，自动刷新页面3次尝试修复' },
+					defaultValue: true
+				},
+				volume: volume,
+				definition: definition,
+				playbackRate: {
+					label: '视频倍速',
+					tag: 'select',
+					defaultValue: 1,
+					options: [
+						['1', '1 x'],
+						['1.25', '1.25 x'],
+						['1.5', '1.5 x']
+					]
+				}
+			},
+			async oncomplete() {
+				// 置顶当前脚本
+				CommonProject.scripts.render.methods.pin(this);
+				const processor = new WishdomH5();
+
+				const getChapterName = () => document.querySelector('.video-study-wrapper-title')?.textContent || '未知章节';
+
+				// // 点击显示进度条，否则无法进行倍速，清晰度等操作
+				// const showControlBar = async () => {
+				// 	await processor.remotePage?.hover('.videoArea');
+				// 	await processor.remotePage?.click('.videoArea', { button: 'middle' });
+				// 	await processor.remotePage?.hover('.speedBox');
+				// 	// 需要点击一下屏幕中心，否则视频控制菜单无法正常弹出
+				// 	await processor.remotePage?.click('.speedBox', { button: 'middle' });
+				// };
+
+				// 监听音量
+				this.onConfigChange('volume', (curr) => {
+					state.study.currentMedia && (state.study.currentMedia.volume = curr);
+				});
+
+				// 监听速度
+				this.onConfigChange('playbackRate', async (curr) => {
+					if (typeof curr === 'string') {
+						this.cfg.playbackRate = parseFloat(curr);
+					}
+					fixProcessBar();
+					processor.switchPlaybackRate(curr);
+				});
+
+				// 监听清晰度
+				this.onConfigChange('definition', async (curr) => {
+					fixProcessBar();
+					processor.switchLine(curr);
+				});
+
+				const next = async () => {
+					const show = $el('.side-expand-box.animated-box.show');
+					if (show) {
+						if (processor.remotePage) {
+							await processor.remotePage.click(show);
+						} else {
+							show.click();
+						}
+					}
+
+					const nextJob = processor.getNext({ next: true, restudy: this.cfg.restudy });
+					if (nextJob) {
+						if (!this.cfg.skipStudyTimeWarnDialog && hasStudyTimeWarnDialog()) {
+							$message.warn({
+								content:
+									'检测到习惯分弹窗，当天学习时间已满，如需继续学习，请手动关闭后，刷新页面重新运行脚本！（如想强制学习请前往脚本设置忽略弹窗）',
+								duration: 0
+							});
+							return;
+						} else {
+							await closeStudyTimeWarnDialog();
+						}
+						await waitForMasteryLevelDialogClose();
+						// 展开章节
+						await processor.remotePage?.click(nextJob);
+						doWork();
+					} else {
+						finishAlert();
+					}
+				};
+
+				// 实时检测关闭掌握度页面
+				const closeMasteryLevelDialog = () => {
+					return new Promise<void>((resolve, reject) => {
+						const check = () => {
+							if (document.querySelector('.masterylevel-body')) {
+								processor.remotePage?.click('.header-box .close-box');
+								$message.info('掌握度页面已关闭，即将继续学习！');
+							}
+							setTimeout(check, 3000);
+						};
+						check();
+					});
+				};
+
+				const hasStudyTimeWarnDialog = () => {
+					return !!Array.from(document.querySelectorAll('.el-overlay .content')).find((el) =>
+						el.textContent?.includes('保持良好的学习习惯')
+					);
+				};
+
+				const closeStudyTimeWarnDialog = () => {
+					return new Promise<void>((resolve, reject) => {
+						const interval = setInterval(() => {
+							const dialog = Array.from(document.querySelectorAll('.el-overlay')).find((el) =>
+								el.textContent?.includes('保持良好的学习习惯')
+							);
+							if (dialog) {
+								const btn = dialog.querySelector('.el-dialog__header img');
+								if (btn) processor.remotePage?.click(btn);
+								clearInterval(interval);
+								resolve();
+							}
+						}, 1000);
+
+						// 3秒后自动结束
+						setTimeout(() => {
+							clearInterval(interval);
+							resolve();
+						}, 3 * 1000);
+					});
+				};
+
+				const waitForMasteryLevelDialogClose = async () => {
+					return new Promise<void>((resolve, reject) => {
+						const check = () => {
+							if (!document.querySelector('.masterylevel-body')) {
+								resolve();
+							} else {
+								setTimeout(check, 200);
+							}
+						};
+						check();
+					});
+				};
+
+				const waitForLoad = () => {
+					return new Promise<void>((resolve, reject) => {
+						const check = () => {
+							if (document.querySelector('.main-container')) {
+								resolve();
+							} else {
+								setTimeout(check, 1000);
+							}
+						};
+						check();
+					});
+				};
+
+				/** 固定视频进度 */
+				const fixProcessBar = () => {
+					const bar = document.querySelector<HTMLElement>('.controlsBar');
+					if (bar) {
+						bar.style.cssText = 'z-index: 2; overflow: inherit; display: block;';
+					}
+				};
+
+				await waitForLoad();
+
+				await $.sleep(3000);
+				closeMasteryLevelDialog();
+				// 自动隐藏弹窗
+				processor.hideDialog();
+
+				// 初始化处理器
+				await processor.init();
+				// 自动过弹窗测验
+				processor.handleTestDialog(processor.remotePage);
+
+				setInterval(() => {
+					// 定时显示进度条，防止消失
+					fixProcessBar();
+				}, 1000);
+
+				$message.success({ content: '即将开始自动学习！' });
+
+				const reload = async (e: any) => {
+					$console.error(e);
+					if (this.cfg.reloadWhenError) {
+						const msg = '视频加载失败，即将刷新页面。';
+						const reload_count = await $store.getTab('reload-count');
+						if (reload_count && reload_count > 3) {
+							const msg = '视频加载失败/黑屏导致重新加载页面次数超过3次，请尝试关闭页面重新打开，或者检查网络连接！';
+							await $store.setTab('reload-count', 0);
+							$message.error({ content: msg, duration: 0 });
+							$console.log(msg);
+							CommonProject.scripts.settings.methods.notificationBySetting(msg, {
+								duration: 0,
+								extraTitle: '知道智慧树学习脚本'
+							});
+							return;
+						}
+						await $store.setTab('reload-count', (reload_count ?? 0) + 1);
+						$message.error(msg);
+						$console.log(msg);
+						setTimeout(() => {
+							location.reload();
+						}, 3000);
+					} else {
+						const msg = '视频加载失败，即将跳过。';
+						$message.error(msg);
+						$console.log(msg);
+						next();
+					}
+				};
+
+				const doWork = async () => {
+					await waitForCaptcha();
+					try {
+						const media = await waitForMedia({
+							timeout: 10 * 1000,
+							filter: (m) => m.src.length !== 0
+						});
+						media.pause();
+						fixProcessBar();
+					} catch (e) {
+						reload(e);
+						return;
+					}
+
+					const set = async () => {
+						// 上面操作会导致元素刷新，这里重新获取视频
+						try {
+							// 设置清晰度
+							await processor.switchLine(this.cfg.definition || 'line1bq');
+							await $.sleep(1000);
+							// 设置播放速度
+							await processor.switchPlaybackRate(this.cfg.playbackRate);
+							await $.sleep(1000);
+							const media = await waitForMedia({ timeout: 5 * 1000, filter: (m) => m.src.length !== 0 });
+							await $.sleep(1000);
+							state.study.currentMedia = media;
+							if (media) {
+								// 如果已经播放完了，则重置视频进度
+								media.currentTime = 1;
+								// 音量
+								media.volume = this.cfg.volume;
+							}
+							return state.study.currentMedia;
+						} catch (e) {
+							reload(e);
+						}
+					};
+
+					await waitForCaptcha();
+					const video = await set();
+					if (!video) {
+						return;
+					}
+
+					// 如果视频元素无法访问，证明已经切换了视频
+					const videoCheckInterval = setInterval(async () => {
+						if (!video?.isConnected) {
+							clearInterval(videoCheckInterval);
+							$message.info({ content: '检测到视频切换中...' });
+							/**
+							 * 元素无法访问证明用户切换视频了
+							 * 所以不往下播放视频，而是重新播放用户当前选中的视频
+							 */
+							doWork();
+						}
+					}, 3000);
+
+					playMedia(() => video?.play()).then(() => {
+						const cn = getChapterName();
+						$message.info({ content: '正在学习：' + cn });
+						$console.log('正在学习：' + cn);
+					});
+
+					video.onpause = async () => {
+						if (!video?.isConnected) return;
+						if (!video?.ended && state.study.stop === false) {
+							await $.sleep(1000);
+							video?.play();
+						}
+					};
+
+					video.onended = async () => {
+						if (!video?.isConnected) return;
+						$message.info('即将自动跳转下一节');
+						$console.info('即将自动跳转下一节');
+						clearInterval(videoCheckInterval);
+						await $.sleep(3000);
+						await next();
+					};
+				};
+
+				doWork();
+			}
 		})
 	}
 });
@@ -1205,6 +1630,10 @@ async function watch(
 				await $store.setTab('reload-count', 0);
 				$message.error({ content: msg, duration: 0 });
 				$console.log(msg);
+				CommonProject.scripts.settings.methods.notificationBySetting(msg, {
+					duration: 0,
+					extraTitle: '知道智慧树学习脚本'
+				});
 				return;
 			}
 			await $store.setTab('reload-count', (reload_count ?? 0) + 1);
@@ -1353,7 +1782,7 @@ function checkForCaptcha(update: (hasCaptcha: boolean) => void) {
 function waitForCaptcha(): void | Promise<void> {
 	const popup = getPopupCaptcha();
 	if (popup) {
-		$message.warn({ content: '当前检测到验证码，请输入后方可继续运行。' });
+		const message = $message.warn({ content: '当前检测到验证码，请输入后方可继续运行。', duration: 0 });
 		CommonProject.scripts.settings.methods.notificationBySetting(
 			'智慧树脚本：当前检测到验证码，请输入后方可继续运行。',
 			{ duration: 0 }
@@ -1363,6 +1792,7 @@ function waitForCaptcha(): void | Promise<void> {
 			const interval = setInterval(() => {
 				const popup = getPopupCaptcha();
 				if (popup === null) {
+					message?.remove();
 					clearInterval(interval);
 					resolve();
 				}
