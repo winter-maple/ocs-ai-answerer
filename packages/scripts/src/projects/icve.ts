@@ -503,7 +503,6 @@ export const IcveMoocProject = Project.create({
 				}
 				if (location.href.includes('kcnr')) {
 					location.reload();
-					
 				}
 			},
 			async oncomplete(type) {
