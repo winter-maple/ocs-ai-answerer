@@ -1,9 +1,9 @@
-## [4.11.2](https://github.com/ocsjs/ocsjs/compare/4.11.1...4.11.2) (2025-09-09)
+## [4.11.3](https://github.com/ocsjs/ocsjs/compare/4.11.2...4.11.3) (2025-09-09)
 
 
 ### Bug Fixes
 
-* **script:** 优化代码 ([bdbcb47](https://github.com/ocsjs/ocsjs/commit/bdbcb472fed208246333d35cc375a955c631023b))
+* 对全部项目的依赖进行版本锁定 ([f760f6d](https://github.com/ocsjs/ocsjs/commit/f760f6d9ff78c3c8366b4c5b2eebb0b957abba19))
 
 
 
