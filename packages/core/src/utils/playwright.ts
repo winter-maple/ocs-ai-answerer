@@ -123,10 +123,10 @@ export class RemotePlaywright {
 	private static authToken = '';
 	private static currentPage: RemotePage | undefined = undefined;
 
-	static async getCurrentPage(configs?: {
-		show_debug_cursor?: boolean;
-		logger?: (...args: any[]) => void;
-	}): Promise<RemotePage | undefined> {
+	static async getRemotePage(
+		show_debug_cursor?: boolean,
+		logger?: (...args: any[]) => void
+	): Promise<RemotePage | undefined> {
 		if (this.currentPage) {
 			return this.currentPage;
 		}
@@ -140,14 +140,14 @@ export class RemotePlaywright {
 					method: 'get',
 					responseType: 'text'
 				});
-				this.currentPage = this.createRemotePage(this.authToken, configs);
+				this.currentPage = this.createRemotePage(this.authToken, { show_debug_cursor, logger });
 				return this.currentPage;
 			} catch (e) {
 				console.log(e);
 				return undefined;
 			}
 		} else {
-			this.currentPage = this.createRemotePage(this.authToken, configs);
+			this.currentPage = this.createRemotePage(this.authToken, { show_debug_cursor, logger });
 			return this.currentPage;
 		}
 	}
