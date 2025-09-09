@@ -1,4 +1,4 @@
-import { $, OCSWorker, RemotePage, RemotePlaywright, defaultAnswerWrapperHandler } from '@ocsjs/core';
+import { $, OCSWorker, RemotePage, defaultAnswerWrapperHandler } from '@ocsjs/core';
 import { $message, Project, Script, $ui } from 'easy-us';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { CommonProject } from './common';
@@ -322,9 +322,7 @@ export const ICourseProject = Project.create({
 					$render.moveToEdge();
 
 					// 检查是否为软件环境
-					const remotePage = await RemotePlaywright.getCurrentPage({
-						show_debug_cursor: BackgroundProject.scripts.dev.cfg.show_debug_cursor
-					});
+					const remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
 					// 检查是否为软件环境
 					if (!remotePage) {
 						return $playwright.showError();

@@ -447,7 +447,10 @@ export const BackgroundProject = Project.create({
 			methods() {
 				return {
 					getRemotePlaywrightCurrentPage: () => {
-						return RemotePlaywright.getCurrentPage({ show_debug_cursor: this.cfg.show_debug_cursor });
+						return RemotePlaywright.getCurrentPage({
+							show_debug_cursor: this.cfg.show_debug_cursor,
+							logger: console.debug
+						});
 					}
 				};
 			},
