@@ -1,9 +1,9 @@
-## [4.11.5](https://github.com/ocsjs/ocsjs/compare/4.11.4...4.11.5) (2025-09-09)
+## [4.11.8](https://github.com/ocsjs/ocsjs/compare/4.11.5...4.11.8) (2025-09-15)
 
 
-### Bug Fixes
+### Features
 
-* 尝试修复Git打包错误的BUG ([30cbbbc](https://github.com/ocsjs/ocsjs/commit/30cbbbc8726b18c6508a18ef75b500206e8e4647))
+* **script:** - 添加搜题结果AI标注显示 ([7783cee](https://github.com/ocsjs/ocsjs/commit/7783cee4d1898ab1029189a8dd112f70ad45ed5a))
 
 
 
