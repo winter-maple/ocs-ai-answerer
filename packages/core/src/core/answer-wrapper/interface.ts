@@ -2,6 +2,7 @@
 export interface Result {
 	question: string;
 	answer: string;
+	extra_data?: object;
 }
 
 /** 题库查询信息 */

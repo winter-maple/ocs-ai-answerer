@@ -212,7 +212,7 @@ export function simplifyWorkResult(
 					error: sr.error,
 					name: sr.name,
 					homepage: sr.homepage,
-					results: sr.results.map((ans) => [ans.question, ans.answer])
+					results: sr.results.map((ans) => [ans.question, ans.answer, ans.extra_data || {}])
 				})) || []
 		});
 		i++;

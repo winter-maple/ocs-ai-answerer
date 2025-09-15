@@ -5,7 +5,8 @@ import {
 	request,
 	SimplifyWorkResult,
 	$,
-	WorkUploadType
+	WorkUploadType,
+	AnswerWrapperHandlerConfig
 } from '@ocsjs/core';
 import { $message, h, $gm, $store, Project, Script, $modal, StoreListenerType, $ui } from 'easy-us';
 import type { AnswerMatchMode, AnswererWrapper, SearchInformation } from '@ocsjs/core';
@@ -106,36 +107,6 @@ export const CommonProject = Project.create({
 						'想要自动答题必须设置 “题库配置” ',
 						'设置后进入章节测试，作业，考试页面即可自动答题。'
 					]).outerHTML
-				},
-				notification: {
-					label: '系统通知',
-					attrs: {
-						title:
-							'允许脚本发送系统通知，只有重要事情发生时会发送系统通知，尽量避免用户受到骚扰（在电脑屏幕右侧显示通知弹窗，例如脚本执行完毕，图形验证码，版本更新等通知）。'
-					},
-					tag: 'select',
-					defaultValue: 'only-notify' as 'only-notify' | 'notify-and-voice' | 'all' | 'no-notify',
-					options: [
-						['only-notify', '只显示右下角通知'],
-						['notify-and-voice', '通知以及提示音（叮的一声）'],
-						['all', '通知，提示音，以及任务栏闪烁提示'],
-						['no-notify', '关闭系统通知']
-					]
-				},
-				notificationWebhooks: {
-					label: '通知回调',
-					attrs: {
-						title:
-							// eslint-disable-next-line no-template-curly-in-string
-							'发送系统通知时发送回调请求，用于专业开发人员对接其他通知系统。（每行填写一个URL，顺序发送GET请求，${message} 为消息占位符，可用于消息变量替换）'
-					},
-					tag: 'textarea',
-					defaultValue: ''
-				},
-				enableQuestionCaches: {
-					label: '题库缓存功能',
-					defaultValue: true,
-					attrs: { type: 'checkbox', title: '详情请前往 通用-其他应用-题库拓展查看。' }
 				},
 				answererWrappers: {
 					separator: '自动答题设置',
@@ -464,17 +435,6 @@ export const CommonProject = Project.create({
 							'自动答题完成后的设置，目前仅在 超星学习通的章节测试 中生效, 鼠标悬浮在选项上可以查看每个选项的具体解释。'
 					}
 				},
-				stopSecondWhenFinish: {
-					label: '答题结束后暂停（秒）',
-					attrs: {
-						type: 'number',
-						min: 3,
-						step: 1,
-						max: 9999,
-						title: '自动答题脚本结束后暂停的时间（方便查看和检查）。'
-					},
-					defaultValue: 3
-				},
 				thread: {
 					label: '线程数量（个）',
 					attrs: {
@@ -486,17 +446,6 @@ export const CommonProject = Project.create({
 							'同一时间内答题线程工作的数量（例子：三个线程则代表一秒内同时搜索三道题），过多可能导致题库服务器压力过大，请适当调低。'
 					},
 					defaultValue: 1
-				},
-				period: {
-					label: '搜题间隔（秒）',
-					attrs: {
-						type: 'number',
-						min: 1,
-						step: 1,
-						max: 60,
-						title: '每道题的搜题间隔时间，不建议太低，避免增加服务器压力。'
-					},
-					defaultValue: 3
 				},
 				'work-when-no-job': {
 					defaultValue: false,
@@ -518,9 +467,11 @@ export const CommonProject = Project.create({
 					attrs: { type: 'checkbox', title: '题库搜索不到答案时，随机填写以下任意一个文案' }
 				},
 				'randomWork-completeTexts-textarea': {
+					elementClassName: 'config-details',
 					defaultValue: ['不会', '不知道', '不清楚', '不懂', '不会写'].join('\n'),
 					label: '(仅超星)随机填空文案',
 					tag: 'textarea',
+					showIf: 'common.settings.randomWork-complete',
 					attrs: { title: '每行一个，随机填入', style: { minWidth: '200px', minHeight: '50px' } },
 					onload(el) {
 						el.addEventListener('change', () => {
@@ -530,7 +481,41 @@ export const CommonProject = Project.create({
 						});
 					}
 				},
+				advancedSettings: {
+					defaultValue: false,
+					label: '高级设置',
+					attrs: { type: 'checkbox', title: '请谨慎使用高级设置，可能会影响答题效果，小白在未理解的情况下谨慎调整。' }
+				},
+
+				stopSecondWhenFinish: {
+					showIf: 'common.settings.advancedSettings',
+					elementClassName: 'config-details',
+					label: '答题结束后暂停（秒）',
+					attrs: {
+						type: 'number',
+						min: 3,
+						step: 1,
+						max: 9999,
+						title: '自动答题脚本结束后暂停的时间（方便查看和检查）。'
+					},
+					defaultValue: 3
+				},
+				period: {
+					showIf: 'common.settings.advancedSettings',
+					elementClassName: 'config-details',
+					label: '搜题间隔（秒）',
+					attrs: {
+						type: 'number',
+						min: 1,
+						step: 1,
+						max: 60,
+						title: '每道题的搜题间隔时间，不建议太低，避免增加服务器压力。'
+					},
+					defaultValue: 3
+				},
 				answerSeparators: {
+					showIf: 'common.settings.advancedSettings',
+					elementClassName: 'config-details',
 					label: '答案分隔符',
 					attrs: {
 						title: "分隔答案的符号，例如：答案1#答案2#答案3，分隔符为 #， 使用英文逗号进行隔开 : ',' "
@@ -544,7 +529,33 @@ export const CommonProject = Project.create({
 						});
 					}
 				},
+				answerMatchMode: {
+					showIf: 'common.settings.advancedSettings',
+					elementClassName: 'config-details',
+					label: '答案匹配模式',
+					tag: 'select',
+					defaultValue: 'similar' as AnswerMatchMode,
+					options: [
+						['similar', '相似匹配', '答案相似度达到60%以上就匹配'],
+						['exact', '精确匹配', '答案必须完全一致才匹配']
+					]
+				},
+				answerWrapperHandlerTimeout: {
+					showIf: 'common.settings.advancedSettings',
+					elementClassName: 'config-details',
+					label: '搜题最大耗时（秒）',
+					attrs: {
+						type: 'number',
+						min: 10,
+						step: 1,
+						max: 60,
+						title: '搜题超时时间，单位为秒，超过这个时间直接放弃，进行下一题搜索。'
+					},
+					defaultValue: 60
+				},
 				redundanceWordsText: {
+					showIf: 'common.settings.advancedSettings',
+					elementClassName: 'config-details',
 					defaultValue: [
 						'单选题(必考)',
 						'填空题(必考)',
@@ -580,14 +591,36 @@ export const CommonProject = Project.create({
 						});
 					}
 				},
-				answerMatchMode: {
-					label: '答案匹配模式',
+				notification: {
+					separator: '其他设置',
+					label: '系统通知',
+					attrs: {
+						title:
+							'允许脚本发送系统通知，只有重要事情发生时会发送系统通知，尽量避免用户受到骚扰（在电脑屏幕右侧显示通知弹窗，例如脚本执行完毕，图形验证码，版本更新等通知）。'
+					},
 					tag: 'select',
-					defaultValue: 'similar' as AnswerMatchMode,
+					defaultValue: 'only-notify' as 'only-notify' | 'notify-and-voice' | 'all' | 'no-notify',
 					options: [
-						['similar', '相似匹配', '答案相似度达到60%以上就匹配'],
-						['exact', '精确匹配', '答案必须完全一致才匹配']
+						['only-notify', '只显示右下角通知'],
+						['notify-and-voice', '通知以及提示音（叮的一声）'],
+						['all', '通知，提示音，以及任务栏闪烁提示'],
+						['no-notify', '关闭系统通知']
 					]
+				},
+				notificationWebhooks: {
+					label: '通知回调',
+					attrs: {
+						title:
+							// eslint-disable-next-line no-template-curly-in-string
+							'发送系统通知时发送回调请求，用于专业开发人员对接其他通知系统。（每行填写一个URL，顺序发送GET请求，${message} 为消息占位符，可用于消息变量替换）'
+					},
+					tag: 'textarea',
+					defaultValue: ''
+				},
+				enableQuestionCaches: {
+					label: '题库缓存功能',
+					defaultValue: true,
+					attrs: { type: 'checkbox', title: '详情请前往 通用-其他应用-题库拓展查看。' }
 				}
 			},
 			methods() {
@@ -658,6 +691,13 @@ export const CommonProject = Project.create({
 						}
 					}
 				};
+			},
+			// 实时更新内部设置
+			oncomplete() {
+				AnswerWrapperHandlerConfig.timeout_seconds = this.cfg.answerWrapperHandlerTimeout;
+				this.onConfigChange('answerWrapperHandlerTimeout', (sec) => {
+					AnswerWrapperHandlerConfig.timeout_seconds = sec;
+				});
 			},
 			onrender({ panel }) {
 				// 因为需要用到 GM_xhr 所以判断是否处于用户脚本环境
@@ -1217,7 +1257,9 @@ export const CommonProject = Project.create({
 									),
 									h(SearchInfosElement, {
 										infos: infos.map((info) => ({
-											results: info.results.map((res) => [res.question, res.answer] as [string, string]),
+											results: info.results.map(
+												(res) => [res.question, res.answer, res.extra_data] as [string, string, object]
+											),
 											homepage: info.homepage,
 											name: info.name
 										})),

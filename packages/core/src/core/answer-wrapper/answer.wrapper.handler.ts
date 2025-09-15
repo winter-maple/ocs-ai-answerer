@@ -2,6 +2,11 @@ import { AnswererWrapper, SearchInformation, Result } from './interface';
 import { request } from '../utils/request';
 import { $ } from '../../utils';
 
+export const AnswerWrapperHandlerConfig = {
+	// 超时时间，单位毫秒
+	timeout_seconds: 60
+};
+
 /**
  *
  * 默认题库配置解析器
@@ -121,7 +126,7 @@ export async function defaultAnswerWrapperHandler(
 						type,
 						headers: JSON.parse(JSON.stringify(headers || {}))
 					}),
-					$.sleep(60 * 1000)
+					$.sleep((AnswerWrapperHandlerConfig.timeout_seconds ?? 60) * 1000)
 				]);
 				if (responseData === undefined) {
 					throw new Error('题库请求超时，可能是题库问题，或者请检查网络或者重试。');

@@ -1,5 +1,5 @@
 import { SimplifyWorkResult, splitAnswer, $ } from '@ocsjs/core';
-import { h } from 'easy-us';
+import { $ui, h } from 'easy-us';
 import { createQuestionTitleExtra } from '../utils';
 
 /**
@@ -50,6 +50,16 @@ export class SearchInfosElement extends HTMLElement {
 						...info.results.map((ans) => {
 							const title = transformImgLinkOfQuestion(ans[0] || this.question || '无');
 							const answer = transformImgLinkOfQuestion(ans[1] || '无');
+							const extra_data = (ans[2] || {}) as any;
+
+							if (extra_data.ai) {
+								extra_data.tags = extra_data.tags || [];
+								extra_data.tags.push({
+									text: 'AI',
+									title: '此答案由 AI 生成，仅供参考',
+									color: 'blue'
+								});
+							}
 
 							return h('div', { className: 'search-result' }, [
 								/** 题目 */
@@ -57,6 +67,18 @@ export class SearchInfosElement extends HTMLElement {
 								/** 答案 */
 								h('div', { className: 'answer' }, [
 									h('span', '答案：'),
+									...(extra_data.tags
+										? extra_data.tags.map((tag: { text: string; title: string; color: string }) =>
+												$ui.tooltip(
+													h('code', {
+														className: 'search-result-answer-tag ' + tag.color,
+														innerHTML: tag.text,
+														title: tag.title,
+														dataset: { title: tag.title }
+													})
+												)
+										  )
+										: []),
 									...splitAnswer(answer).map((a) => h('code', { innerHTML: a }))
 								])
 							]);
