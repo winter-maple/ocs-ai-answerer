@@ -121,10 +121,10 @@ export async function defaultAnswerWrapperHandler(
 						type,
 						headers: JSON.parse(JSON.stringify(headers || {}))
 					}),
-					$.sleep(30 * 1000)
+					$.sleep(60 * 1000)
 				]);
 				if (responseData === undefined) {
-					throw new Error('题库连接超时，请检查网络或者重试。');
+					throw new Error('题库请求超时，可能是题库问题，或者请检查网络或者重试。');
 				}
 
 				/** 从 handler 获取搜索到的题目和回答 */
@@ -141,13 +141,15 @@ export async function defaultAnswerWrapperHandler(
 						results = results.concat(
 							info.map((item: any) => ({
 								question: item[0],
-								answer: item[1]
+								answer: item[1],
+								extra_data: item[2] || {}
 							}))
 						);
 					} else {
 						results.push({
 							question: info[0],
-							answer: info[1]
+							answer: info[1],
+							extra_data: info[2] || {}
 						});
 					}
 				}
