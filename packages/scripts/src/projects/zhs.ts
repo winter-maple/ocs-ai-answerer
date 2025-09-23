@@ -729,7 +729,6 @@ export const ZHSProject = Project.create({
 									await remotePage.click('.title-box');
 									await $.sleep(200);
 								}
-								item.scrollIntoView();
 								await remotePage.click(item);
 								await $.sleep(200);
 								// 两次点击修复黑屏问题
@@ -860,10 +859,11 @@ export const ZHSProject = Project.create({
 			configs: {
 				notes: {
 					defaultValue: $ui.notes([
-						'作业请大家观看完视频后手动打开。',
-						'不要最小化浏览器，可能导致脚本暂停。',
+						'掌握度和作业请视频看完后自行手动进入',
+						'不要最小化浏览器/关闭电脑屏幕，可能导致脚本暂停。',
 						'任意选择一个章节，脚本会自动往下学“必学”课程。',
-						'掌握度自动答题请学习完成后自行手动点击进入'
+						'运行中请将浏览器缩放调整至适合的大小，避免元素遮挡，无法点击',
+						'例如：调整缩放到 50%，然后刷新页面即可'
 					]).outerHTML
 				},
 				switchMode: {
@@ -1296,9 +1296,11 @@ export const ZHSProject = Project.create({
 			configs: {
 				notes: {
 					defaultValue: $ui.notes([
-						'作业请大家观看完视频后手动打开。',
-						'不要最小化浏览器，可能导致脚本暂停。',
-						'掌握度和作业请视频看完后自行手动进入'
+						'掌握度和作业请视频看完后自行手动进入',
+						'不要最小化浏览器/关闭电脑屏幕，可能导致脚本暂停。',
+						'请使用时关闭卡巴斯基软件，否则会导致无法运行。',
+						'运行中请将浏览器缩放调整至适合的大小，避免元素遮挡，无法点击',
+						'例如：调整缩放到 50%，然后刷新页面即可'
 					]).outerHTML
 				},
 				restudy: restudy,
