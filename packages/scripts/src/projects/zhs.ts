@@ -1524,17 +1524,6 @@ export const ZHSProject = Project.create({
 
 				const doWork = async () => {
 					await waitForCaptcha();
-					try {
-						const media = await waitForMedia({
-							timeout: 10 * 1000,
-							filter: (m) => m.src.length !== 0
-						});
-						media.pause();
-						fixProcessBar();
-					} catch (e) {
-						reload(e);
-						return;
-					}
 
 					const set = async () => {
 						// 上面操作会导致元素刷新，这里重新获取视频
@@ -1559,6 +1548,21 @@ export const ZHSProject = Project.create({
 							reload(e);
 						}
 					};
+
+					$message.info('开始播放');
+					// 部分用户视频加载很慢，这里等待一下
+					try {
+						const media = await waitForMedia({
+							timeout: 10 * 1000,
+							filter: (m) => m.src.length !== 0
+						});
+						media.pause();
+						// 固定进度条便于下方点击音量等按钮
+						fixProcessBar();
+					} catch (e) {
+						reload(e);
+						return;
+					}
 
 					await waitForCaptcha();
 					const video = await set();
@@ -1651,19 +1655,6 @@ async function watch(
 			actions.onended({ next: true });
 		}
 	};
-	// 部分用户视频加载很慢，这里等待一下
-	try {
-		const media = await waitForMedia({ timeout: 10 * 1000 });
-
-		if (media) {
-			// 如果已经播放完了，则重置视频进度
-			media.currentTime = 1;
-			// 音量
-			media.volume = options.volume;
-		}
-	} catch (e) {
-		return await reload(e);
-	}
 
 	const set = async () => {
 		// 上面操作会导致元素刷新，这里重新获取视频
@@ -1673,8 +1664,9 @@ async function watch(
 			await $.sleep(1000);
 			// 设置播放速度
 			await processor.switchPlaybackRate(options.playbackRate);
-
+			await $.sleep(1000);
 			const media = await waitForMedia({ timeout: 10 * 1000 });
+			await $.sleep(1000);
 			state.study.currentMedia = media;
 
 			if (media) {
@@ -1689,9 +1681,22 @@ async function watch(
 		}
 	};
 
+	$message.info('开始播放');
+
+	// 部分用户视频加载很慢，这里等待一下
+	try {
+		const media = await waitForMedia({ timeout: 10 * 1000 });
+		// 如果已经播放完了，则重置视频进度
+		media.pause();
+		// 固定进度条便于下方点击音量等按钮
+		fixProcessBar();
+	} catch (e) {
+		return await reload(e);
+	}
+
 	const video = await set();
 	if (!video) {
-		return;
+		return await reload('视频加载失败');
 	}
 
 	const videoCheckInterval = setInterval(async () => {
