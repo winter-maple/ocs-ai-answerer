@@ -169,6 +169,10 @@ export class RemotePlaywright {
 						const options = (args[1] || {}) as ClickOptions;
 
 						await scrollToElement(el);
+						// 如果是传入的元素对象，那么就解析元素的坐标进行点击
+						// 这里滑动的时间可能会比较长，取决于页面的长度，所以这里多等待一点时间
+						await $.sleep(500);
+
 						// 显示鼠标位置
 						if (configs?.show_debug_cursor) {
 							showMousePointer(el);
@@ -246,13 +250,13 @@ function showMousePointer(el: HTMLElement) {
 		div.style.zIndex = '99999';
 		div.style.width = '20px';
 		div.style.height = '20px';
-		div.style.border = '3px solid red';
+		div.style.border = '2px solid red';
 		div.style.borderRadius = '50%';
-		div.style.left = rect.left + rect.width / 2 - 10 + 'px';
-		div.style.top = rect.top + rect.height / 2 - 10 + 'px';
+		div.style.left = rect.left + rect.width / 2 - 11 + 'px';
+		div.style.top = rect.top + rect.height / 2 - 11 + 'px';
 		document.body.append(div);
 		setTimeout(() => {
 			div.remove();
 		}, 500);
-	}, 200);
+	}, 100);
 }
