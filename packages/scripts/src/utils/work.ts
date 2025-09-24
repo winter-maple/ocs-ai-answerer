@@ -9,6 +9,7 @@ import { CommonWorkOptions, workPreCheckMessage } from '.';
 export function commonWork(
 	script: Script,
 	options: {
+		start_delay_seconds?: number;
 		workerProvider: (opts: CommonWorkOptions) => OCSWorker<any> | undefined;
 		beforeRunning?: () => void | Promise<void>;
 		onRestart?: () => void | Promise<void>;
@@ -101,7 +102,8 @@ export function commonWork(
 		onNoAnswererWrappers: () => {
 			checkFailed = true;
 		},
-		...workOptions
+		...workOptions,
+		start_delay_seconds: options.start_delay_seconds
 	});
 
 	const start = async () => {

@@ -343,7 +343,7 @@ export const CXProject = Project.create({
 			async oncomplete() {
 				const isExam = /\/exam\/preview/.test(location.href);
 				commonWork(this, {
-					workerProvider: (opts) => workOrExam(isExam ? 'exam' : 'work', opts)
+					workerProvider: (opts) => workOrExam(isExam ? 'exam' : 'work', { ...opts, preview_mode: true })
 				});
 			}
 		}),
@@ -437,7 +437,6 @@ export const CXProject = Project.create({
 				['', 'work/getAllWork'],
 				['', 'work/doHomeWorkNew'],
 				['', 'exam/test\\?'],
-				['', 'exam/test/reVersionTestStartNew.*examsystem.*'],
 				['', 'mooc-ans/mycourse/studentstudy']
 			],
 			hideInPanel: true,
@@ -481,6 +480,20 @@ export const CXProject = Project.create({
 			],
 			hideInPanel: true,
 			oncomplete() {
+				if ($gm.unsafeWindow.document.querySelector('.mark_info')?.textContent?.includes('不允许整卷预览')) {
+					$message.info({
+						content: '由于超星禁止整卷预览，每题相当于一个新页面，因此搜索结果只会显示一个。',
+						duration: 0
+					});
+					const isExam = /\/exam\/test/.test(location.href);
+					const workOptions = CommonProject.scripts.settings.methods.getWorkOptions();
+					commonWork(this, {
+						// 因为超星是每个题目一个页面，这里加快开始速度，避免等待，默认5秒，这里加快为默认3秒间隔
+						start_delay_seconds: workOptions.period,
+						workerProvider: (opts) => workOrExam(isExam ? 'exam' : 'work', { ...opts, preview_mode: false })
+					});
+					return;
+				}
 				$message.info({ content: '即将跳转到整卷预览页面进行考试。' });
 				setTimeout(() => $gm.unsafeWindow.topreview(), 3000);
 			}
@@ -640,13 +653,26 @@ export const CXProject = Project.create({
 
 function workOrExam(
 	type: 'work' | 'exam' = 'work',
-	{ answererWrappers, period, thread, redundanceWordsText, answerSeparators, answerMatchMode }: CommonWorkOptions
+	{
+		answererWrappers,
+		period,
+		thread,
+		redundanceWordsText,
+		answerSeparators,
+		answerMatchMode,
+		preview_mode
+	}: CommonWorkOptions & {
+		// 整卷预览模式
+		preview_mode: boolean;
+	}
 ) {
 	$message.info(`开始${type === 'work' ? '作业' : '考试'}`);
 
-	CommonProject.scripts.workResults.methods.init({
-		questionPositionSyncHandlerType: 'cx'
-	});
+	if (preview_mode) {
+		CommonProject.scripts.workResults.methods.init({
+			questionPositionSyncHandlerType: 'cx'
+		});
+	}
 
 	// 处理作业和考试题目的方法
 	const workOrExamQuestionTitleTransform = (titles: (HTMLElement | undefined)[]) => {
@@ -804,16 +830,36 @@ function workOrExam(
 		}
 	});
 
-	worker
-		.doWork()
-		.then(() => {
-			$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+	if (preview_mode) {
+		worker
+			.doWork()
+			.then(() => {
+				$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+				worker.emit('done');
+			})
+			.catch((err) => {
+				console.error(err);
+				$message.error('答题程序发生错误 : ' + err.message);
+			});
+	} else {
+		const getNextBtn = () => document.querySelector('[onclick="getTheNextQuestion(1)"]') as HTMLElement;
+		let next = getNextBtn();
+
+		(async () => {
+			while (next && worker.isClose === false) {
+				await worker.doWork({ enable_debug: true });
+				await $.sleep(1000);
+				next = getNextBtn();
+				next?.click();
+				await $.sleep(1000);
+			}
+
+			$message.success({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
 			worker.emit('done');
-		})
-		.catch((err) => {
-			console.error(err);
-			$message.error('答题程序发生错误 : ' + err.message);
-		});
+			// 搜索完成后才会同步答案与题目的显示，防止题目错乱
+			CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'cx';
+		})();
+	}
 
 	return worker;
 }

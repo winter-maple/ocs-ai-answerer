@@ -16,6 +16,7 @@ export interface CommonWorkOptions {
 /** 创建答题预处理信息 */
 export function workPreCheckMessage(
 	options: CommonWorkOptions & {
+		start_delay_seconds?: number;
 		onrun: (opts: CommonWorkOptions) => void;
 		/**
 		 * 当没有题库配置时的回调
@@ -36,13 +37,14 @@ export function workPreCheckMessage(
 			duration: 0
 		});
 	} else {
+		options.start_delay_seconds = options.start_delay_seconds ?? 5;
 		return $message.info({
-			duration: 5,
+			duration: options.start_delay_seconds,
 			content: h('span', [
-				'5秒后自动答题，',
+				`${options.start_delay_seconds}秒后自动答题，`,
 				$ui.preventText({
 					name: '点击取消',
-					delay: 5,
+					delay: options.start_delay_seconds,
 					ondefault: (span) => {
 						onrun(opts);
 					},
