@@ -50,7 +50,7 @@ export class SearchInfosElement extends HTMLElement {
 						...info.results.map((ans) => {
 							const title = transformImgLinkOfQuestion(ans[0] || this.question || '无');
 							const answer = transformImgLinkOfQuestion(ans[1] || '无');
-							const extra_data = (ans[2] || {}) as any;
+							const extra_data = JSON.parse(JSON.stringify(ans[2] || {}));
 
 							if (extra_data.ai) {
 								extra_data.tags = extra_data.tags || [];
