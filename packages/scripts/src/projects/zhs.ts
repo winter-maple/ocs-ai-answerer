@@ -1204,6 +1204,8 @@ export const ZHSProject = Project.create({
 								return $playwright.showError();
 							}
 						}
+						// 移动到左上角
+						$render.moveToEdge();
 
 						$message.warn({ content: '即将开始答题，答题完毕之前请勿操作页面！', duration: 0 });
 						setTimeout(() => {
