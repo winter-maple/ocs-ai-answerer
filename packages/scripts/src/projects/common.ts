@@ -179,7 +179,7 @@ export const CommonProject = Project.create({
 									],
 									[
 										h('div', [
-											'【注意】如果无法粘贴，请点击此按钮：',
+											'⚠️ 如果无法粘贴，请点->：',
 											h('button', '读取剪贴板', (btn) => {
 												btn.classList.add('base-style-button');
 												btn.onclick = () => {
@@ -191,7 +191,8 @@ export const CommonProject = Project.create({
 											'，并同意浏览器上方的剪贴板读取申请。'
 										])
 									],
-									['如果想添加多个不同的题库配置，请在每个配置之间使用三个井号隔开: ###。'],
+									['⚠️ 如果想添加多个不同的题库配置，请在每个配置之间使用三个井号隔开: ###。'],
+									['⚠️ 配置第三方题库出现网页弹窗的，点击永久允许连接。'],
 									...(aw.length ? [list] : [])
 								]),
 								footer: h('div', { style: { width: '100%' } }, [
