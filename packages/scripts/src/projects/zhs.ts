@@ -341,7 +341,6 @@ class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
 	getNext(opts: { next: boolean; restudy: boolean }) {
 		let jobs = Array.from(document.querySelectorAll<HTMLElement>('.category-wrapper .child-info.hasvideo'));
 		console.log(jobs);
-		$console.log(JSON.stringify(opts));
 		// 如果不是复习模式，则排除掉已经完成的任务
 		if (!opts.restudy) {
 			jobs = jobs.filter((el) => {
@@ -355,12 +354,9 @@ class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
 		for (let i = 0; i < jobs.length; i++) {
 			const item = jobs[i];
 			if (item.classList.contains('current')) {
-				$console.log(opts.next, item.classList.toString(), item.textContent);
 				return jobs[i + (opts.next ? 1 : 0)];
 			}
 		}
-
-		$console.log(opts.next, jobs[0].classList.toString(), jobs[0].textContent);
 		return jobs[0];
 	}
 
@@ -429,10 +425,62 @@ class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
 	}
 }
 
+/**
+ * 2025-9月份教学空间-AI智慧学习页面，新系统
+ */
+class Hike extends StudyVideoH5 implements ZHSProcessor {
+	getCourseName() {
+		return '无名称';
+	}
+
+	getChapterName(item: HTMLElement): string {
+		return item.textContent || '未知章节';
+	}
+
+	hasJob() {
+		return document.querySelectorAll('.source-icon')?.length > 0;
+	}
+
+	getNext(opts: { next: boolean; restudy: boolean }) {
+		let jobs = Array.from(document.querySelectorAll<HTMLElement>('.source-icon')).map(
+			(el) => el.parentElement?.parentElement as HTMLElement
+		);
+		console.log(jobs);
+		// 如果不是复习模式，则排除掉已经完成的任务
+		if (!opts.restudy) {
+			jobs = jobs.filter((el) => {
+				if (el.querySelector('i.select')) {
+					return false;
+				}
+				return true;
+			});
+		}
+
+		for (let i = 0; i < jobs.length; i++) {
+			const item = jobs[i];
+			if (item.querySelector('.active-file')) {
+				return jobs[i + (opts.next ? 1 : 0)];
+			}
+		}
+		return jobs[0];
+	}
+
+	hideDialog() {
+		/** 隐藏通知弹窗 */
+		$$el('.el-overlay,.el-dialog').forEach((dialog) => {
+			dialog.style.display = 'none';
+		});
+	}
+}
+
 /** 工程导出 */
 export const ZHSProject = Project.create({
 	name: '知到智慧树',
-	domains: ['zhihuishu.com'],
+	domains: [
+		'zhihuishu.com',
+		// 2025下半学期新系统: AI智慧课程
+		'hike-teaching-center.polymas.com'
+	],
 	scripts: {
 		guide: new Script({
 			name: '💡 使用提示',
@@ -1524,6 +1572,225 @@ export const ZHSProject = Project.create({
 
 				const doWork = async () => {
 					await waitForCaptcha();
+
+					const set = async () => {
+						// 上面操作会导致元素刷新，这里重新获取视频
+						try {
+							// 设置清晰度
+							await processor.switchLine(this.cfg.definition || 'line1bq');
+							await $.sleep(1000);
+							// 设置播放速度
+							await processor.switchPlaybackRate(this.cfg.playbackRate);
+							await $.sleep(1000);
+							const media = await waitForMedia({ timeout: 5 * 1000, filter: (m) => m.src.length !== 0 });
+							await $.sleep(1000);
+							state.study.currentMedia = media;
+							if (media) {
+								// 如果已经播放完了，则重置视频进度
+								media.currentTime = 1;
+								// 音量
+								media.volume = this.cfg.volume;
+							}
+							return state.study.currentMedia;
+						} catch (e) {
+							reload(e);
+						}
+					};
+
+					$message.info('开始播放');
+					// 部分用户视频加载很慢，这里等待一下
+					try {
+						const media = await waitForMedia({
+							timeout: 10 * 1000,
+							filter: (m) => m.src.length !== 0
+						});
+						media.pause();
+						// 固定进度条便于下方点击音量等按钮
+						fixProcessBar();
+					} catch (e) {
+						reload(e);
+						return;
+					}
+
+					await waitForCaptcha();
+					const video = await set();
+					if (!video) {
+						return;
+					}
+
+					// 如果视频元素无法访问，证明已经切换了视频
+					const videoCheckInterval = setInterval(async () => {
+						if (!video?.isConnected) {
+							clearInterval(videoCheckInterval);
+							$message.info({ content: '检测到视频切换中...' });
+							/**
+							 * 元素无法访问证明用户切换视频了
+							 * 所以不往下播放视频，而是重新播放用户当前选中的视频
+							 */
+							doWork();
+						}
+					}, 3000);
+
+					playMedia(() => video?.play()).then(() => {
+						const cn = getChapterName();
+						$message.info({ content: '正在学习：' + cn });
+						$console.log('正在学习：' + cn);
+					});
+
+					video.onpause = async () => {
+						if (!video?.isConnected) return;
+						if (!video?.ended && state.study.stop === false) {
+							await $.sleep(1000);
+							video?.play();
+						}
+					};
+
+					video.onended = async () => {
+						if (!video?.isConnected) return;
+						$message.info('即将自动跳转下一节');
+						$console.info('即将自动跳转下一节');
+						clearInterval(videoCheckInterval);
+						await $.sleep(3000);
+						await next();
+					};
+				};
+
+				doWork();
+			}
+		}),
+		hike: new Script({
+			name: '🖥️ 教学空间-AI智慧课程-学习脚本',
+			matches: [
+				['学习首页', 'hike-teaching-center.polymas.com/stu-hike/agent-course-hike/ai-course-center'],
+				['学习页面', 'tools-hike/studentStudyResource']
+			],
+			namespace: 'zhs.hike.study',
+			configs: {
+				notes: {
+					defaultValue: $ui.notes(['请手动进入视频、作业、考试页面，脚本会自动运行。']).outerHTML
+				},
+				restudy: restudy,
+				reloadWhenError: {
+					label: '视频黑屏时自动刷新',
+					attrs: { type: 'checkbox', title: '当视频出现加载失败，或者黑屏等异常时，自动刷新页面3次尝试修复' },
+					defaultValue: true
+				},
+				volume: volume,
+				definition: definition,
+				playbackRate: {
+					label: '视频倍速',
+					tag: 'select',
+					defaultValue: 1,
+					options: [
+						['1', '1 x'],
+						['1.25', '1.25 x'],
+						['1.5', '1.5 x']
+					]
+				}
+			},
+			async oncomplete(...args) {
+				// 置顶当前脚本
+				CommonProject.scripts.render.methods.pin(this);
+				if (location.href.includes('stu-hike/agent-course-hike/ai-course-center')) {
+					$message.info({ content: '请手动进入视频、作业、考试页面，脚本会自动运行。', duration: 60 });
+					return;
+				}
+				const processor = new Hike();
+				// 监听音量
+				this.onConfigChange('volume', (curr) => {
+					state.study.currentMedia && (state.study.currentMedia.volume = curr);
+				});
+
+				// 监听速度
+				this.onConfigChange('playbackRate', async (curr) => {
+					if (typeof curr === 'string') {
+						this.cfg.playbackRate = parseFloat(curr);
+					}
+					fixProcessBar();
+					processor.switchPlaybackRate(curr);
+				});
+
+				// 监听清晰度
+				this.onConfigChange('definition', async (curr) => {
+					fixProcessBar();
+					processor.switchLine(curr);
+				});
+
+				const getChapterName = () => document.querySelector('.active-file')?.textContent?.trim() || '未知章节';
+
+				const next = async () => {
+					const nextJob = processor.getNext({ next: true, restudy: this.cfg.restudy });
+					if (nextJob) {
+						nextJob.click();
+						await $.sleep(3000);
+						doWork();
+					} else {
+						finishAlert();
+					}
+				};
+				const waitForLoad = () => {
+					return new Promise<void>((resolve, reject) => {
+						const check = () => {
+							if (processor.hasJob()) {
+								resolve();
+							} else {
+								setTimeout(check, 1000);
+							}
+						};
+						check();
+					});
+				};
+
+				await waitForLoad();
+
+				await $.sleep(3000);
+
+				setInterval(() => {
+					// 定时显示进度条，防止消失
+					fixProcessBar();
+				}, 1000);
+
+				$message.success({ content: '即将开始自动学习！' });
+
+				const reload = async (e: any) => {
+					$console.error(e);
+					if (this.cfg.reloadWhenError) {
+						const msg = '视频加载失败，即将刷新页面。';
+						const reload_count = await $store.getTab('reload-count');
+						if (reload_count && reload_count > 3) {
+							const msg = '视频加载失败/黑屏导致重新加载页面次数超过3次，请尝试关闭页面重新打开，或者检查网络连接！';
+							await $store.setTab('reload-count', 0);
+							$message.error({ content: msg, duration: 0 });
+							$console.log(msg);
+							CommonProject.scripts.settings.methods.notificationBySetting(msg, {
+								duration: 0,
+								extraTitle: '知道智慧树学习脚本'
+							});
+							return;
+						}
+						await $store.setTab('reload-count', (reload_count ?? 0) + 1);
+						$message.error(msg);
+						$console.log(msg);
+						setTimeout(() => {
+							location.reload();
+						}, 3000);
+					} else {
+						const msg = '视频加载失败，即将跳过。';
+						$message.error(msg);
+						$console.log(msg);
+						next();
+					}
+				};
+
+				const doWork = async () => {
+					await waitForCaptcha();
+
+					if (!document.querySelector('.active-file')?.parentElement?.parentElement?.querySelector('.icon-movie')) {
+						$message.warn('当前章节不支持学习，即将跳转下一节');
+						await $.sleep(3000);
+						await next();
+						return;
+					}
 
 					const set = async () => {
 						// 上面操作会导致元素刷新，这里重新获取视频
