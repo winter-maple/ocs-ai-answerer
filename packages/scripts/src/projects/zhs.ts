@@ -778,9 +778,10 @@ export const ZHSProject = Project.create({
 									await $.sleep(200);
 								}
 								await remotePage.click(item);
-								await $.sleep(200);
+								await $.sleep(1000);
 								// 两次点击修复黑屏问题
 								await remotePage.click(item);
+								await $.sleep(1000);
 							} else {
 								item.click();
 							}
@@ -1928,6 +1929,7 @@ async function watch(
 	const set = async () => {
 		// 上面操作会导致元素刷新，这里重新获取视频
 		try {
+			await $.sleep(1000);
 			// 设置清晰度
 			await processor.switchLine(options.definition || 'line1bq');
 			await $.sleep(1000);
@@ -1951,6 +1953,7 @@ async function watch(
 	};
 
 	$message.info('开始播放');
+	await $.sleep(1000);
 
 	// 部分用户视频加载很慢，这里等待一下
 	try {
