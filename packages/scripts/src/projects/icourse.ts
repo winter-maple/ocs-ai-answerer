@@ -9,6 +9,11 @@ import { waitForElement, waitForMedia } from '../utils/study';
 import { playbackRate, volume, workNotes } from '../utils/configs';
 import { $render } from '../utils/render';
 
+const $msg_and_log = (type: 'info' | 'warn' | 'error', msg: string) => {
+	$message[type](msg);
+	$console[type](msg);
+};
+
 const state = {
 	currentMedia: undefined as HTMLMediaElement | undefined,
 	currentUrlHash: '',
@@ -146,7 +151,7 @@ export const ICourseProject = Project.create({
 							const currentUnitItem = document.querySelector('.j-unitslist  li.current');
 							const unitName = currentUnitItem?.querySelector('.unit-name')?.textContent;
 
-							$console.log(`正在学习：${lessonName || ''} - ${unitName || ''}`);
+							$msg_and_log('info', `正在学习：${lessonName || ''} - ${unitName || ''}`);
 
 							const isJob = (iconName: string) => currentUnitItem?.querySelector(`[class*=${iconName}]`);
 
@@ -155,15 +160,15 @@ export const ICourseProject = Project.create({
 							if (isJob('u-icon-video')) {
 								await waitForElement('video, audio');
 								await watchMedia(this.cfg.playbackRate, this.cfg.volume);
-								$console.log('视频学习完成');
+								$msg_and_log('info', '视频学习完成');
 							} else if (isJob('u-icon-doc')) {
 								await waitForElement('.ux-pdf-reader');
 								await readPPT(remotePage, this.cfg.readSpeed);
-								$console.log('PPT完成');
+								$msg_and_log('info', 'PPT完成');
 							} else if (isJob('u-icon-discuss')) {
 								await waitForElement('.j-reply-all');
 								await discussion(remotePage, this.cfg.discussionStrategy);
-								$console.log('讨论完成');
+								$msg_and_log('info', '讨论完成');
 							} else if (isJob('u-icon-test')) {
 								const replay = await waitForElement('.j-replay');
 								if (replay?.style.display === 'none') {
@@ -177,16 +182,19 @@ export const ICourseProject = Project.create({
 											});
 										});
 
-										$console.log('测验完成');
+										$msg_and_log('info', '测验完成');
 									} else {
-										$console.warn('随堂测验自动答题功能已关闭（上方菜单栏-中国大学MOOC-学习脚本中开启），即将跳过。');
+										$msg_and_log(
+											'warn',
+											'随堂测验自动答题功能已关闭（上方菜单栏-中国大学MOOC-学习脚本中开启），即将跳过。'
+										);
 									}
 								} else {
-									$console.log('随堂测验已完成，即将跳过。');
+									$msg_and_log('info', '随堂测验已完成，即将跳过。');
 								}
 							} else if (isJob('u-icon-text')) {
 								// 文档无需处理
-								$console.log('文档无需处理，即将跳过。');
+								$msg_and_log('info', '文档无需处理，即将跳过。');
 							} else {
 								hasJob = false;
 							}
@@ -196,9 +204,9 @@ export const ICourseProject = Project.create({
 							// 跳转下一章，然后通过URL变化，调度器会重新执行此 main 函数
 							if (canRun()) {
 								if (hasJob) {
-									$console.log('准备跳转下一章');
+									$msg_and_log('info', '准备跳转下一章');
 								} else {
-									$console.warn('未找到学习内容，或者此章节不支持自动学习！即将跳过本章节');
+									$msg_and_log('warn', '未找到学习内容，或者此章节不支持自动学习！即将跳过本章节');
 								}
 								await gotoNextJob();
 							}
@@ -331,7 +339,7 @@ export const ICourseProject = Project.create({
 					// 等待加载题目
 					await waitForQuestion();
 
-					$console.log('开始答题');
+					$msg_and_log('info', '开始答题');
 					CommonProject.scripts.render.methods.pin(this);
 					commonWork(this, {
 						workerProvider: (opts) => {
@@ -341,7 +349,7 @@ export const ICourseProject = Project.create({
 							});
 							const interval = setInterval(() => {
 								if (canRun() === false) {
-									$message.warn('检测到页面切换，无法继续答题，将关闭自动答题。');
+									$msg_and_log('warn', '检测到页面切换，无法继续答题，将关闭自动答题。');
 									clearInterval(interval);
 									worker.emit('close');
 								}
@@ -483,8 +491,7 @@ function workAndExam(
 				return;
 			}
 			if (type === 'chapter-test') {
-				$message.info(`答题完成，将等待 ${stopSecondWhenFinish} 秒后进行保存或提交。`);
-				$console.info(`答题完成，将等待 ${stopSecondWhenFinish} 秒后进行保存或提交。`);
+				$msg_and_log('info', `答题完成，将等待 ${stopSecondWhenFinish} 秒后进行保存或提交。`);
 				await $.sleep(stopSecondWhenFinish * 1000);
 				if (worker.isClose) {
 					return;
@@ -509,7 +516,7 @@ function workAndExam(
 							if (sumbit) {
 								await remotePage.click(sumbit);
 							} else {
-								$console.warn('没有找到提交按钮，将跳过提交。');
+								$msg_and_log('warn', '没有找到提交按钮，将跳过提交。');
 							}
 						}
 					}
@@ -569,7 +576,7 @@ async function readPPT(remotePage: RemotePage, readSpeed: number) {
 			if (next) {
 				await remotePage.click(next);
 			} else {
-				$console.error('未找到PPT的下一页按钮！');
+				$msg_and_log('error', '未找到PPT的下一页按钮！');
 			}
 			await $.sleep(readSpeed * 1000);
 		}
@@ -581,7 +588,7 @@ async function discussion(
 	discussionStrategy: typeof ICourseProject.scripts.study.cfg.discussionStrategy
 ) {
 	if (discussionStrategy === 'not-reply') {
-		return $console.warn('讨论自动回复功能已关闭（上方菜单栏-中国大学MOOC-学习脚本中开启）。');
+		return $msg_and_log('warn', '讨论自动回复功能已关闭（上方菜单栏-中国大学MOOC-学习脚本中开启）。');
 	}
 
 	let res = '';
@@ -594,7 +601,7 @@ async function discussion(
 		}
 		const content = [...mapping.entries()].sort((a, b) => b[1] - a[1])?.[0]?.[0];
 		if (!content) {
-			$console.error('读取出现最多评论失败！');
+			$msg_and_log('error', '读取出现最多评论失败！');
 		}
 		res = content;
 	} else if (discussionStrategy === 'max-fav') {
@@ -610,13 +617,13 @@ async function discussion(
 		}
 		const content = maxEl?.querySelector('.j-content')?.textContent || '';
 		if (!content) {
-			$console.error('读取最多点赞评论失败！');
+			$msg_and_log('error', '读取最多点赞评论失败！');
 		}
 		res = content;
 	} else if (discussionStrategy === 'use-newest') {
 		const content = document.querySelector('.j-reply-all .f-pr .first .j-content')?.textContent || '';
 		if (!content) {
-			$console.error('读取最新评论失败！');
+			$msg_and_log('error', '读取最新评论失败！');
 		}
 		res = content;
 	}
@@ -628,11 +635,12 @@ async function discussion(
 		const submit = document.querySelector('.j-reply-add .editbtn');
 		if (submit) {
 			await remotePage.click(submit);
+			$message.info('提交回复成功！');
 		} else {
-			$console.error('获取提交按钮失败！');
+			$msg_and_log('error', '获取提交按钮失败！');
 		}
 		await $.sleep(2000);
 	} else {
-		$console.error('获取评论输入框失败！');
+		$msg_and_log('error', '获取评论输入框失败！');
 	}
 }
