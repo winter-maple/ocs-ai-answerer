@@ -102,9 +102,7 @@ export async function defaultAnswerWrapperHandler(
 								throw new Error('data 字段解析器必须返回一个函数');
 							}
 							const result = handler(env);
-							if (result) {
-								Reflect.set(data, key, result);
-							}
+							Reflect.set(data, key, result);
 						} else {
 							// 解析data数据
 							Reflect.set(data, key, resolvePlaceHolder(wrapperData[key]));
