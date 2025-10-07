@@ -225,9 +225,28 @@ export const BackgroundProject = Project.create({
 							responseType: 'json'
 						});
 
+						const open_sync = await request('http://localhost:15319/is-browser-config-sync', {
+							type: 'GM_xmlhttpRequest',
+							method: 'get',
+							responseType: 'text'
+						});
+
 						this.cfg.connected = true;
 
-						if (res && Object.keys(res).length) {
+						if (open_sync === 'true' && res && Object.keys(res).length) {
+							// 自OCS软件 2.8.21 版本后特殊字段，用于标记不进行同步的字段
+							// 通过OCS playwright 启动的浏览器会自动返回数据
+							// 不使用 http 防止某些 Content-Security-Policy 限制
+							const res = await request('/ocs-environment', {
+								type: 'fetch',
+								method: 'get'
+							});
+							const environment = res.environment;
+							if (environment !== 'playwright') {
+								this.cfg.sync = false;
+								return;
+							}
+
 							// 排除几个特殊的设置
 							for (const key in res) {
 								if (Object.prototype.hasOwnProperty.call(res, key)) {
