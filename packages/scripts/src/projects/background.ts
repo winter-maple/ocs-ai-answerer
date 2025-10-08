@@ -171,11 +171,8 @@ export const BackgroundProject = Project.create({
 						'如果不是，您可以忽略此脚本。'
 					]).outerHTML
 				},
-				sync: {
-					defaultValue: false
-				},
-				connected: {
-					defaultValue: false
+				sync_status: {
+					defaultValue: 'unconnect' as 'not_playwright_environment' | 'unconnect' | 'not_open_sync' | 'synced'
 				},
 				closeSync: {
 					defaultValue: false,
@@ -192,11 +189,26 @@ export const BackgroundProject = Project.create({
 				panel.configsContainer.classList.remove('lock');
 
 				const update = () => {
-					if (this.cfg.sync) {
+					if (this.cfg.closeSync) {
+						const tip = h('div', { className: 'notes card' }, ['已关闭同步。']);
+						panel.body.replaceChildren(h('hr'), tip);
+					} else if (this.cfg.sync_status === 'synced') {
 						const tip = h('div', { className: 'notes card' }, [`已成功同步软件中的配置.`]);
 						panel.body.replaceChildren(h('hr'), tip);
-					} else if (this.cfg.connected) {
-						const tip = h('div', { className: 'notes card' }, [`已成功连接到软件，但配置为空。`]);
+					} else if (this.cfg.sync_status === 'unconnect') {
+						const tip = h('div', { className: 'notes card' }, ['未同步软件配置，可能是桌面软件未启动。']);
+						panel.body.replaceChildren(h('hr'), tip);
+					} else if (this.cfg.sync_status === 'not_playwright_environment') {
+						const tip = h('div', { className: 'notes card' }, ['当前浏览器不是由桌面端软件启动，无法同步配置。']);
+						panel.body.replaceChildren(h('hr'), tip);
+					} else if (this.cfg.sync_status === 'not_open_sync') {
+						const tip = h('div', { className: 'notes card' }, ['桌面端软件未开启配置同步功能']);
+						panel.body.replaceChildren(h('hr'), tip);
+					} else if (this.cfg.sync_status === 'empty_config') {
+						const tip = h('div', { className: 'notes card' }, ['已成功连接到软件，但配置为空。']);
+						panel.body.replaceChildren(h('hr'), tip);
+					} else {
+						const tip = h('div', { className: 'notes card' }, ['同步状态未知，请稍后重试。']);
 						panel.body.replaceChildren(h('hr'), tip);
 					}
 				};
@@ -205,130 +217,135 @@ export const BackgroundProject = Project.create({
 				this.offConfigChange(state.app.listenerIds.sync);
 				this.offConfigChange(state.app.listenerIds.connected);
 				this.offConfigChange(state.app.listenerIds.closeSync);
-				state.app.listenerIds.sync = this.onConfigChange('sync', update);
-				state.app.listenerIds.connected = this.onConfigChange('connected', update);
+				state.app.listenerIds.connected = this.onConfigChange('sync_status', update);
 				state.app.listenerIds.closeSync = this.onConfigChange('closeSync', (closeSync) => {
 					if (closeSync) {
-						this.cfg.sync = false;
-						this.cfg.connected = false;
+						this.cfg.sync_status = 'not_open_sync';
 						$message.success({ content: '已关闭同步，刷新页面后生效' });
 					}
 				});
 			},
 			async onactive() {
 				if ($.isInTopWindow() && this.cfg.closeSync === false) {
-					this.cfg.sync = false;
+					this.cfg.sync_status = 'unconnect';
 					try {
 						const res = await request('http://localhost:15319/browser', {
 							type: 'GM_xmlhttpRequest',
 							method: 'get',
 							responseType: 'json'
 						});
-
+						if (!res) {
+							this.cfg.sync_status = 'unconnect';
+							return;
+						}
 						const open_sync = await request('http://localhost:15319/is-browser-config-sync', {
 							type: 'GM_xmlhttpRequest',
 							method: 'get',
 							responseType: 'text'
 						});
 
-						this.cfg.connected = true;
-
-						if (open_sync === 'true' && res && Object.keys(res).length) {
-							// 自OCS软件 2.8.21 版本后特殊字段，用于标记不进行同步的字段
-							// 通过OCS playwright 启动的浏览器会自动返回数据
-							// 不使用 http 防止某些 Content-Security-Policy 限制
-							const res = await request('/ocs-environment', {
-								type: 'fetch',
-								method: 'get'
-							});
-							const environment = res.environment;
-							if (environment !== 'playwright') {
-								this.cfg.sync = false;
-								return;
-							}
-
-							// 排除几个特殊的设置
-							for (const key in res) {
-								if (Object.prototype.hasOwnProperty.call(res, key)) {
-									// 排除渲染脚本的设置
-									if (RenderScript.namespace && key.startsWith(RenderScript.namespace)) {
-										Reflect.deleteProperty(res, key);
-									}
-									// 排除后台脚本的设置
-									for (const scriptKey in BackgroundProject.scripts) {
-										if (Object.prototype.hasOwnProperty.call(BackgroundProject.scripts, scriptKey)) {
-											const script: Script = Reflect.get(BackgroundProject.scripts, scriptKey);
-											if (script.namespace && key.startsWith(script.namespace)) {
-												Reflect.deleteProperty(res, key);
-											}
-										}
-									}
-								}
-							}
-
-							// 排除那些不用同步的配置
-							for (const project of definedProjects()) {
-								for (const key in project.scripts) {
-									if (Object.prototype.hasOwnProperty.call(project.scripts, key)) {
-										const script = project.scripts[key];
-										for (const ck in script.configs) {
-											if (Object.prototype.hasOwnProperty.call(script.configs, ck)) {
-												if (script.configs[ck].extra?.appConfigSync === false) {
-													Reflect.deleteProperty(res, $.namespaceKey(script.namespace, ck));
-												}
-											}
-										}
-									}
-								}
-							}
-
-							// 同步所有的配置
-							for (const key in res) {
-								if (Object.prototype.hasOwnProperty.call(res, key)) {
-									$store.set(key, res[key]);
-								}
-							}
-
-							// 锁定面板
-							for (const project of definedProjects()) {
-								// 排除后台脚本的锁定
-								if (project.name === BackgroundProject.name) {
-									continue;
-								}
-								for (const key in project.scripts) {
-									if (Object.prototype.hasOwnProperty.call(project.scripts, key)) {
-										const script = project.scripts[key];
-										const originalRender = script.onrender;
-										// 重新定义渲染函数。在渲染后添加锁定面板的代码
-										script.onrender = ({ panel, header }) => {
-											originalRender?.({ panel, header });
-											if (panel.configsContainer.children.length) {
-												panel.configsContainer.classList.add('lock');
-												panel.lockWrapper.style.width =
-													(panel.configsContainer.clientWidth ?? panel.clientWidth) + 'px';
-												panel.lockWrapper.style.height =
-													(panel.configsContainer.clientHeight ?? panel.clientHeight) + 'px';
-												panel.configsContainer.prepend(panel.lockWrapper);
-
-												panel.lockWrapper.title =
-													'🚫已同步OCS桌面版软件配置，如需修改请在桌面版软件的左侧栏设置-通用设置-OCS配置，中进行修改。或者前往脚本悬浮窗:后台-软件配置同步 关闭配置同步功能。';
-												panel.lockWrapper = $ui.tooltip(panel.lockWrapper);
-											}
-										};
-										// 重新执行渲染
-										if (script.panel && script.header) {
-											script.onrender({ panel: script.panel, header: script.header });
-										}
-									}
-								}
-							}
-
-							this.cfg.sync = true;
+						if (open_sync !== 'true') {
+							this.cfg.sync_status = 'not_open_sync';
+							return;
 						}
+
+						if (Object.keys(res).length === 0) {
+							this.cfg.sync_status = 'not_open_sync';
+							return;
+						}
+
+						// 自OCS软件 2.8.21 版本后特殊字段，用于标记不进行同步的字段
+						// 通过OCS playwright 启动的浏览器会自动返回数据
+						// 不使用 http 防止某些 Content-Security-Policy 限制
+						const environment_res = await request('/ocs-environment', {
+							type: 'fetch',
+							method: 'get'
+						});
+						const environment = environment_res?.environment;
+						if (!environment || environment !== 'playwright') {
+							this.cfg.sync_status = 'not_playwright_environment';
+							return;
+						}
+
+						// 排除几个特殊的设置
+						for (const key in res) {
+							if (Object.prototype.hasOwnProperty.call(res, key)) {
+								// 排除渲染脚本的设置
+								if (RenderScript.namespace && key.startsWith(RenderScript.namespace)) {
+									Reflect.deleteProperty(res, key);
+								}
+								// 排除后台脚本的设置
+								for (const scriptKey in BackgroundProject.scripts) {
+									if (Object.prototype.hasOwnProperty.call(BackgroundProject.scripts, scriptKey)) {
+										const script: Script = Reflect.get(BackgroundProject.scripts, scriptKey);
+										if (script.namespace && key.startsWith(script.namespace)) {
+											Reflect.deleteProperty(res, key);
+										}
+									}
+								}
+							}
+						}
+
+						// 排除那些不用同步的配置
+						for (const project of definedProjects()) {
+							for (const key in project.scripts) {
+								if (Object.prototype.hasOwnProperty.call(project.scripts, key)) {
+									const script = project.scripts[key];
+									for (const ck in script.configs) {
+										if (Object.prototype.hasOwnProperty.call(script.configs, ck)) {
+											if (script.configs[ck].extra?.appConfigSync === false) {
+												Reflect.deleteProperty(res, $.namespaceKey(script.namespace, ck));
+											}
+										}
+									}
+								}
+							}
+						}
+
+						// 同步所有的配置
+						for (const key in res) {
+							if (Object.prototype.hasOwnProperty.call(res, key)) {
+								$store.set(key, res[key]);
+							}
+						}
+
+						// 锁定面板
+						for (const project of definedProjects()) {
+							// 排除后台脚本的锁定
+							if (project.name === BackgroundProject.name) {
+								continue;
+							}
+							for (const key in project.scripts) {
+								if (Object.prototype.hasOwnProperty.call(project.scripts, key)) {
+									const script = project.scripts[key];
+									const originalRender = script.onrender;
+									// 重新定义渲染函数。在渲染后添加锁定面板的代码
+									script.onrender = ({ panel, header }) => {
+										originalRender?.({ panel, header });
+										if (panel.configsContainer.children.length) {
+											panel.configsContainer.classList.add('lock');
+											panel.lockWrapper.style.width = (panel.configsContainer.clientWidth ?? panel.clientWidth) + 'px';
+											panel.lockWrapper.style.height =
+												(panel.configsContainer.clientHeight ?? panel.clientHeight) + 'px';
+											panel.configsContainer.prepend(panel.lockWrapper);
+
+											panel.lockWrapper.title =
+												'🚫已同步OCS桌面版软件配置，如需修改请在桌面版软件的左侧栏设置-通用设置-OCS配置，中进行修改。或者前往脚本悬浮窗:后台-软件配置同步 关闭配置同步功能。';
+											panel.lockWrapper = $ui.tooltip(panel.lockWrapper);
+										}
+									};
+									// 重新执行渲染
+									if (script.panel && script.header) {
+										script.onrender({ panel: script.panel, header: script.header });
+									}
+								}
+							}
+						}
+
+						this.cfg.sync_status = 'synced';
 					} catch (e) {
 						console.error(e);
-						this.cfg.sync = false;
-						this.cfg.connected = false;
+						this.cfg.sync_status = 'unconnect';
 					}
 				}
 			}
