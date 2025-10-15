@@ -144,7 +144,9 @@ export const CXProject = Project.create({
 		'zhihui-yun.com',
 		'cqie.cn',
 		'ccqmxx.com',
-		'jxgmxy.com'
+		'jxgmxy.com',
+		// 超星学习通PPT，2025下半年更新的PTT图书新域名
+		'sslibrary.com'
 	],
 	scripts: {
 		guide: new Script({
