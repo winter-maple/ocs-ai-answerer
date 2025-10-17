@@ -52,6 +52,9 @@ export const auto: Config<any, boolean> = {
 
 /** 答题提示 */
 export const workNotes: Config<any, string> = {
-	defaultValue: $ui.notes(['自动答题前请在 “通用-全局设置” 中设置题库配置。', '可以搭配 “通用-在线搜题” 一起使用。'])
-		.outerHTML
+	defaultValue: $ui.notes([
+		'自动答题前请在 “通用-全局设置” 中设置题库配置。',
+		'可以搭配 “通用-在线搜题” 一起使用。',
+		'⚠️禁止同时开多个作业/考试页面。'
+	]).outerHTML
 };
