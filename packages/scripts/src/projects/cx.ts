@@ -311,6 +311,8 @@ export const CXProject = Project.create({
 					return;
 				}
 
+				alert(/\/knowledge\/cards/.test(location.href));
+
 				// 主要处理
 				if (/\/knowledge\/cards/.test(location.href)) {
 					const updateMediaState = () => {
@@ -1344,6 +1346,8 @@ function searchJob(
 		const win = root.contentWindow;
 
 		const { videojs, read, chapterTest, hyperlink, pptWithAudio } = searchJobElement(root);
+
+		$console.log({ videojs, read, chapterTest, hyperlink, pptWithAudio });
 
 		if (win && (videojs || read || chapterTest || hyperlink || pptWithAudio)) {
 			// 获取任务点数据字符串

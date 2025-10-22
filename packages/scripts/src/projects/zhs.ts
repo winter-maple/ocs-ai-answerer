@@ -520,7 +520,7 @@ export const ZHSProject = Project.create({
 							'每天定时半小时可获得一分习惯分。',
 							'如果不想要习惯分可忽略。'
 						],
-						'请使用时关闭卡巴斯基软件，否则会导致无法运行。',
+						'请使用时关闭卡巴斯基软件，否则会被检测出异常脚本。',
 						'不要最小化浏览器，可能导致脚本暂停。',
 						'运行中请将浏览器缩放调整至适合的大小，避免元素遮挡，无法点击',
 						'例如：调整缩放到 50%，然后刷新页面即可'
@@ -1351,7 +1351,7 @@ export const ZHSProject = Project.create({
 					defaultValue: $ui.notes([
 						'掌握度和作业请视频看完后自行手动进入',
 						'不要最小化浏览器/关闭电脑屏幕，可能导致脚本暂停。',
-						'请使用时关闭卡巴斯基软件，否则会导致无法运行。',
+						'请使用时关闭卡巴斯基软件，否则会被检测出异常脚本。',
 						'运行中请将浏览器缩放调整至适合的大小，避免元素遮挡，无法点击',
 						'例如：调整缩放到 50%，然后刷新页面即可'
 					]).outerHTML
@@ -1880,6 +1880,17 @@ export const ZHSProject = Project.create({
 				};
 
 				doWork();
+			}
+		}),
+		'hike-work': new Script({
+			matches: [['AI教学中心-作业任务页面', '/stu-hike/stuHomeworkDo']],
+			name: '✍️ 教学空间-AI智慧课程-作业考试脚本',
+			namespace: 'zhs.hike.work',
+			configs: { notes: workNotes },
+			async oncomplete() {
+				// commonWork(this, {
+				// 	workerProvider: hikeWork
+				// });
 			}
 		})
 	}
