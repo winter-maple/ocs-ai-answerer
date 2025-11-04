@@ -589,6 +589,8 @@ export const CXProject = Project.create({
 
 				CommonProject.scripts.render.methods.pin(CXProject.scripts.study);
 
+				let chapters = await CXAnalyses.waitForChapterInfos();
+
 				if (!restudy) {
 					// 如果不是复习模式，则寻找需要运行的任务
 					const params = new URLSearchParams(window.location.href);
@@ -599,8 +601,6 @@ export const CXProject = Project.create({
 						window.location.replace(decodeURIComponent(params.toString()));
 						return;
 					}
-
-					let chapters = await CXAnalyses.waitForChapterInfos();
 
 					// 过滤掉已完成的章节
 					chapters = chapters.filter((chapter) => chapter.unFinishCount !== 0);
@@ -615,9 +615,18 @@ export const CXProject = Project.create({
 							//  进入需要进行的章节，并且当前章节未被选中
 							if ($$el(`.posCatalog_active[id="cur${chapters[0].chapterId}"]`).length === 0) {
 								$gm.unsafeWindow.getTeacherAjax(courseId, classId, chapters[0].chapterId);
+								// 自动滚动
+								setTimeout(() => {
+									CXAnalyses.scrollToActiveChapter();
+								}, 1000);
 							}
 						}, 1000);
 					}
+				} else {
+					// 自动滚动
+					setTimeout(() => {
+						CXAnalyses.scrollToActiveChapter();
+					}, 1000);
 				}
 			}
 		}),
