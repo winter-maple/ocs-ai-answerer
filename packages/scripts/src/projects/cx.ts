@@ -206,7 +206,7 @@ export const CXProject = Project.create({
 					tag: 'select',
 					options: [
 						['next', '完成后跳转下一节', '完成小节后，自动点击下一节按钮'],
-						['job', '完成后跳转未完成任务点（试验功能）', '如果未找到任务点，则会直接结束脚本运行，目前处于试验阶段。'],
+						['job', '完成后跳转未完成任务点', '如果未找到任务点，则会直接结束脚本运行，目前处于试验阶段。'],
 						['manually', '完成后暂停，等待手动跳转', '适用于自己手动运行']
 					],
 					defaultValue: 'next' as 'next' | 'job' | 'manually'
@@ -997,7 +997,7 @@ const CXAnalyses = {
 	 */
 	isInFinalTab() {
 		// 上方小节任务栏
-		const tabs = Array.from(top?.document.querySelectorAll('.prev_ul li') || []);
+		const tabs = Array.from<HTMLElement>(top?.document.querySelectorAll('.prev_ul li') || []);
 		if (tabs.length === 0) {
 			return true;
 		}
@@ -1021,6 +1021,12 @@ const CXAnalyses = {
 			// @ts-ignore
 			unFinishCount: parseInt(el.parentElement.querySelector('.jobUnfinishCount')?.value || '0')
 		}));
+	},
+	scrollToActiveChapter() {
+		const activeChapter = top?.document.querySelector<HTMLElement>('.posCatalog_active');
+		if (activeChapter) {
+			activeChapter.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
 	},
 	/**
 	 * 等待并获取章节信息，直到获取到章节信息为止
@@ -1251,36 +1257,33 @@ export async function study(
 		if (CXProject.scripts.study.cfg.mode === 'job') {
 			// 检测当前章节是否完成，如果已经完成则下一章
 			// 如果没有需要完成的章节，则暂停运行
-			if ((await checkChapterFinishedAndSkip(CXAnalyses.isInFinalTab())) === false) {
-				const content = '全部任务点已完成！';
-				$modal.alert({ content: content });
-				CommonProject.scripts.settings.methods.notificationBySetting(content, {
-					duration: 0,
-					extraTitle: '超星学习通学习脚本'
-				});
-			}
 
-			// 找到未完成
-			const elements = CXAnalyses.getChapterInfos()
-				.filter((chapter) => chapter.unFinishCount !== 0)
-				.map((el) => el.element.parentElement as HTMLElement);
-			if (elements.length === 0) {
-				$console.warn('未找到未完成的章节，无法跳转下一章，请手动切换。');
-				return;
-			}
+			if (CXAnalyses.isInFinalTab()) {
+				// 找到未完成
+				const elements = CXAnalyses.getChapterInfos()
+					.filter((el) => el.unFinishCount > 0 || el.element.parentElement?.classList.contains('posCatalog_active'))
+					.map((el) => el.element.parentElement as HTMLElement);
+				if (elements.length === 0) {
+					const content = '全部任务点已完成！';
+					$modal.alert({ content: content });
+					CommonProject.scripts.settings.methods.notificationBySetting(content, {
+						duration: 0,
+						extraTitle: '超星学习通学习脚本'
+					});
+					return;
+				}
 
-			let nextChapter = elements[0];
-			// 如果当前章节未完成，则跳转到下一个未完成章节
-			const currentIndex = elements.findIndex((el) => el.classList.contains('posCatalog_active'));
-			if (currentIndex !== -1 && currentIndex + 1 < elements.length) {
-				nextChapter = elements[currentIndex + 1];
-			} else {
-				$console.warn('未找到未完成的章节，无法跳转下一章，请手动切换。');
-				return;
+				let nextChapter = elements[0];
+				// 如果当前章节未完成，则跳转到下一个未完成章节
+				const currentIndex = elements.findIndex((el) => el.classList.contains('posCatalog_active'));
+				if (currentIndex !== -1 && currentIndex + 1 < elements.length) {
+					nextChapter = elements[currentIndex + 1];
+					CXAnalyses.scrollToActiveChapter();
+					setTimeout(() => {
+						nextChapter.querySelector<HTMLElement>('.posCatalog_name')?.click();
+					}, 1000);
+				}
 			}
-
-			nextChapter.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			nextChapter.click();
 		} else if (CXProject.scripts.study.cfg.mode === 'next') {
 			const curCourseId = $el<HTMLInputElement>('#curCourseId', top?.document);
 			const curChapterId = $el<HTMLInputElement>('#curChapterId', top?.document);
@@ -2137,32 +2140,3 @@ function answerWrapperEmptyWarning(duration: number) {
 		});
 	}
 }
-
-/**
- * 检测当前章节是否已经完成，并且跳转到下一个未完成章节
- * 如果没有未完成章节，则暂停运行
- */
-const checkChapterFinishedAndSkip = cors.defineTopFunction('cx.checkChapterFinishedAndSkip', (is_in_last_tab) => {
-	if (CXAnalyses.isCurrentChapterFinished() || is_in_last_tab) {
-		let start = false;
-		const jobs = Array.from(top?.document.querySelectorAll<HTMLElement>('.posCatalog_select:not(.firstLayer)') || []);
-		for (const job of jobs) {
-			// 排除当前章节
-			if (job.classList.contains('posCatalog_active')) {
-				start = true;
-				continue;
-			}
-			if (start) {
-				// 排除已完成章节
-				if (job.querySelector('.icon_Completed') !== null) {
-					continue;
-				}
-				if (job.querySelector('.jobUnfinishCount') !== null) {
-					job.querySelector<HTMLElement>('.posCatalog_name')?.click();
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-});
