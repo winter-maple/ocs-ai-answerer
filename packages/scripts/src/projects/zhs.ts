@@ -835,7 +835,7 @@ export const ZHSProject = Project.create({
 							}
 
 							// 适配AI助教课程PPT跳过
-							if (type === 'AI课程' && document.querySelector('.preview-warp .doc-box')) {
+							if (type === 'AI课程' && document.querySelector('.preview-warp .doc-box,.preview-warp .ppt-box')) {
 								$message.info({ content: '检测到PPT资源，即将跳过...' });
 								await $.sleep(2000);
 								study({ next: true });
