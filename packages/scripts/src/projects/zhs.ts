@@ -179,9 +179,57 @@ class FusionCourseH5 extends StudyVideoH5 implements ZHSProcessor {
 		return '智慧课程-AI';
 	}
 
+	getChapterName(root: HTMLElement): string {
+		// AI 助教课有两种进度模式，一个是百分百，一个是必学项目进度条
+		const is_resource_box_mode = !!document.querySelector('.resource-box');
+		if (is_resource_box_mode) {
+			// 小节名称
+			const card_name = root.querySelector('.file-name');
+			if (card_name) {
+				return card_name.textContent || '未知章节';
+			}
+		}
+		return super.getChapterName(root);
+	}
+
 	getNext(opts: { next: boolean; restudy: boolean }) {
 		// AI 助教课有两种进度模式，一个是百分百，一个是必学项目进度条
 		const is_resource_box_mode = !!document.querySelector('.resource-box');
+		if (is_resource_box_mode) {
+			// 检测小节
+
+			const getNextCard = () => {
+				const cards = Array.from(document.querySelectorAll('.resources-item'));
+
+				let target_el;
+				let start = false;
+				for (let index = 0; index < cards.length; index++) {
+					const card = cards[index];
+					if (start) {
+						if (opts.restudy) {
+							target_el = card;
+							break;
+						} else {
+							if (card.querySelector('.isFinish')) {
+								continue;
+							}
+							target_el = card;
+							break;
+						}
+					}
+					if (card.className.includes('active')) {
+						start = true;
+					}
+				}
+
+				return target_el;
+			};
+
+			const next_card = getNextCard();
+			if (next_card) {
+				return next_card as HTMLElement;
+			}
+		}
 
 		let videoItems = Array.from(document.querySelectorAll<HTMLElement>('.clearfix.video')).filter((el) => {
 			if (is_resource_box_mode) {
@@ -784,6 +832,14 @@ export const ZHSProject = Project.create({
 								await $.sleep(1000);
 							} else {
 								item.click();
+							}
+
+							// 适配AI助教课程PPT跳过
+							if (type === 'AI课程' && document.querySelector('.preview-warp .doc-box')) {
+								$message.info({ content: '检测到PPT资源，即将跳过...' });
+								await $.sleep(2000);
+								study({ next: true });
+								return;
 							}
 
 							watch(
