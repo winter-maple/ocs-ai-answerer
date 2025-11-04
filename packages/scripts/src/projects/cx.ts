@@ -300,10 +300,14 @@ export const CXProject = Project.create({
 				this.offConfigChange(state.study.playbackRateWarningListenerId);
 				state.study.playbackRateWarningListenerId =
 					this.onConfigChange('playbackRate', (playbackRate) => {
-						if (playbackRate > 3) {
+						if (playbackRate > 2) {
 							$modal.alert({
 								title: '⚠️高倍速警告',
-								content: $ui.notes(['高倍速可能导致学习记录清空', '超星后台可以看到学习时长，请谨慎设置❗'])
+								content: $ui.notes([
+									'⚠️高倍速可能导致学习记录清空/回退',
+									'⚠️超星后台可以看到学习时长，请谨慎设置',
+									'⚠️如已清空/回退，请降低倍速至1-2倍'
+								])
 							});
 						}
 					}) || 0;
