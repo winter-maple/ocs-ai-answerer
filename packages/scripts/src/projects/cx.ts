@@ -311,8 +311,6 @@ export const CXProject = Project.create({
 					return;
 				}
 
-				alert(/\/knowledge\/cards/.test(location.href));
-
 				// 主要处理
 				if (/\/knowledge\/cards/.test(location.href)) {
 					const updateMediaState = () => {
@@ -1018,6 +1016,7 @@ const CXAnalyses = {
 	/** 获取所有章节信息 */
 	getChapterInfos() {
 		return Array.from(top?.document.querySelectorAll('[onclick^="getTeacherAjax"]') || []).map((el) => ({
+			element: el as HTMLElement,
 			chapterId: el.getAttribute('onclick')?.match(/\('(.*)','(.*)','(.*)'\)/)?.[3],
 			// @ts-ignore
 			unFinishCount: parseInt(el.parentElement.querySelector('.jobUnfinishCount')?.value || '0')
@@ -1293,6 +1292,16 @@ export async function study(
 				// @ts-ignore
 				top._preChapterId = curChapterId.value;
 
+				const elements = CXAnalyses.getChapterInfos()
+					.map((e) => e.element.parentElement as HTMLElement)
+					.filter(Boolean);
+				const index = elements.findIndex((el) => el.classList.contains('posCatalog_active'));
+				// 如果有下一个，则滚动到那个位置
+				const next_item = elements[index + 1];
+				if (next_item) {
+					next_item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				}
+
 				/**
 				 * count, chapterId, courseId, clazzid, knowledgestr, checkType
 				 * checkType 就是询问当前章节还有任务点未完成，是否完成，这里直接不传，默认下一章
@@ -1368,8 +1377,6 @@ function searchJob(
 		const win = root.contentWindow;
 
 		const { videojs, read, chapterTest, hyperlink, pptWithAudio } = searchJobElement(root);
-
-		$console.log({ videojs, read, chapterTest, hyperlink, pptWithAudio });
 
 		if (win && (videojs || read || chapterTest || hyperlink || pptWithAudio)) {
 			// 获取任务点数据字符串
