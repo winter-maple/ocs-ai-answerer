@@ -1096,13 +1096,13 @@ export const CommonProject = Project.create({
 
 							const tip = h('div', [
 								h('div', { className: 'search-infos-num' }, '1'),
-								'表示等待处理中',
+								' 表示等待处理中',
 								h('br'),
 								h('div', { className: 'search-infos-num requested' }, '1'),
-								'表示已完成搜索 ',
+								' 表示已完成搜索 ',
 								h('br'),
 								h('div', { className: 'search-infos-num finish' }, '1'),
-								'表示已搜索已答题 '
+								' 表示已搜索已答题 '
 							]);
 
 							/** 添加信息 */

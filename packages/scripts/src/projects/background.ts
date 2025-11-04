@@ -1,9 +1,9 @@
 import { RemotePlaywright, request } from '@ocsjs/core';
-import { $ui, $gm, $message, $modal, $store, Project, Script, StoreListenerType, h, $ } from 'easy-us';
+import { $ui, $gm, $message, $modal, $store, Project, Script, StoreListenerType, h, $, MessageElement } from 'easy-us';
 import semver_gt from 'semver/functions/gt';
 import semver_valid from 'semver/functions/valid';
 import { CommonProject } from './common';
-import { definedProjects } from '..';
+import { CXProject, definedProjects, ICourseProject, ZHSProject, ZJYProject } from '..';
 import { RenderScript } from '../render';
 import { SearchInfosElement } from '../elements/search.infos';
 import { $render } from '../utils/render';
@@ -832,6 +832,53 @@ export const BackgroundProject = Project.create({
 						return originalFetch.apply(this, [input, init]);
 					}
 				};
+			}
+		}),
+		environmentDetect: new Script({
+			name: '🤖 环境检测',
+			matches: [['所有页面', /.*/]],
+			hideInPanel: true,
+			oncomplete() {
+				if (self !== top) return;
+
+				const matches = [
+					CXProject.scripts.studyDispatcher.matches,
+					ZHSProject.scripts['gxk-study'].matches,
+					ZHSProject.scripts.hike.matches,
+					ZHSProject.scripts['smart-study'].matches,
+					ZHSProject.scripts['wisdom-study'].matches,
+					ZHSProject.scripts['xnk-study'].matches,
+					ICourseProject.scripts.study.matches,
+					ZJYProject.scripts.study.matches
+				]
+					.flat()
+					.map((m) => (Array.isArray(m) ? m[1] : m));
+
+				const url = window.location.href;
+				const match = matches.some((regex) => {
+					return typeof regex === 'string' ? url.includes(regex) : regex.test(url);
+				});
+				if (!match) {
+					return;
+				}
+
+				let messageElement: MessageElement | undefined;
+				visibleDetect();
+
+				function visibleDetect() {
+					setTimeout(() => {
+						if (!messageElement?.isConnected) messageElement = undefined;
+
+						if (document.visibilityState === 'hidden' && !messageElement) {
+							messageElement = $message.warn({
+								content:
+									'⚠️检测到浏览器最小化/切屏，脚本可能无法正常运行，请保持网课页面在前台！（如果您正在全屏游戏中可以忽略此警告）',
+								duration: 0
+							});
+						}
+						visibleDetect();
+					}, 1000);
+				}
 			}
 		})
 	}
