@@ -146,6 +146,32 @@ export const ICourseProject = Project.create({
 						// 移动窗口到边缘
 						$render.moveToEdge();
 
+						/**
+						 * 处理视频弹窗题目
+						 */
+						const handleVideoTest = async () => {
+							setTimeout(async () => {
+								const question = document.querySelector('.u-questionItem');
+								if (question) {
+									$msg_and_log('info', '检测到视频弹窗测验，开始答题');
+									await new Promise<void>((resolve) => {
+										ICourseProject.scripts.work.methods.start('chapter-test', canRun, (worker) => {
+											console.log('worker', worker);
+											worker.once('done', resolve);
+											worker.once('close', resolve);
+											worker.once('stop', resolve);
+										});
+									});
+									await $.sleep(1000);
+									// 点击继续学习
+									await remotePage.click('.j-unitctBox .u-btn-default.j-continue');
+									$msg_and_log('info', '测验完成');
+								}
+								handleVideoTest();
+							}, 3000);
+						};
+						handleVideoTest();
+
 						const study = async () => {
 							const lessonName = document.querySelector('.j-lesson .j-up')?.textContent;
 							const currentUnitItem = document.querySelector('.j-unitslist  li.current');
@@ -179,6 +205,7 @@ export const ICourseProject = Project.create({
 
 												worker.once('done', resolve);
 												worker.once('close', resolve);
+												worker.once('stop', resolve);
 											});
 										});
 
@@ -356,7 +383,8 @@ export const ICourseProject = Project.create({
 							}, 1000);
 							return worker;
 						},
-						onWorkerCreated: onWorkerCreated
+						onWorkerCreated: onWorkerCreated,
+						start_delay_seconds: 3
 					});
 				};
 				return {
@@ -505,7 +533,7 @@ function workAndExam(
 							uploadable ? '3秒后将自动提交' : '3秒后将自动跳过（没保存按钮）'
 						} `;
 						$console.info(content);
-						$message.success({ content: content, duration: 0 });
+						$message.success({ content: content, duration: type === 'chapter-test' ? 10 : 0 });
 
 						await $.sleep(3000);
 						if (worker.isClose) {
