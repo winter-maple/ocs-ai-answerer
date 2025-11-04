@@ -179,11 +179,8 @@ export const CXProject = Project.create({
 			configs: {
 				notes: {
 					defaultValue: $ui.notes([
-						'自动答题前请在 “通用-全局设置” 中设置题库配置。',
 						['任务点不是顺序执行，如果某一个任务没有动', '请查看是否有其他任务正在学习，耐心等待即可。'],
-						'闯关模式请注意题库如果没完成，需要自己完成才能解锁章节。',
-						'不要最小化浏览器，可能导致脚本暂停。',
-						'脚本详情运行日志请前往：后台-日志 查看'
+						'闯关模式请注意题库如果没完成，需要自己完成才能解锁章节。'
 					]).outerHTML
 				},
 				playbackRate: playbackRate,
@@ -248,6 +245,11 @@ export const CXProject = Project.create({
 					},
 					defaultValue: true
 				},
+				enables: {
+					label: '高级设置',
+					attrs: { type: 'checkbox' },
+					defaultValue: false
+				},
 				/**
 				 *
 				 * 开启的任务点
@@ -260,22 +262,29 @@ export const CXProject = Project.create({
 				 *
 				 */
 				enableMedia: {
-					separator: '任务点开关',
+					elementClassName: 'config-details',
+					showIf: 'cx.new.study.enables',
 					label: '视频/音频自动播放',
 					attrs: { type: 'checkbox', title: '开启：音频和视频的自动播放' },
 					defaultValue: true
 				},
 				enablePPT: {
+					elementClassName: 'config-details',
+					showIf: 'cx.new.study.enables',
 					label: 'PPT/书籍自动完成',
 					attrs: { type: 'checkbox', title: '开启：PPT/书籍自动翻阅' },
 					defaultValue: true
 				},
 				enableChapterTest: {
+					elementClassName: 'config-details',
+					showIf: 'cx.new.study.enables',
 					label: '章节测试自动答题',
 					attrs: { type: 'checkbox', title: '开启：章节测试自动答题' },
 					defaultValue: true
 				},
 				enableHyperlink: {
+					elementClassName: 'config-details',
+					showIf: 'cx.new.study.enables',
 					label: '链接任务自动完成',
 					attrs: { type: 'checkbox', title: '开启：链接任务自动完成' },
 					defaultValue: true
