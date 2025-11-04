@@ -1706,13 +1706,16 @@ const JobRunner = {
 		}
 
 		$console.info('开始章节测试');
+		const visual_state = CommonProject.scripts.render.cfg.visual;
 
 		const frameWindow = frame.contentWindow;
 		const { TiMu } = domSearchAll({ TiMu: '.TiMu' }, frameWindow!.document);
 
+		// 最大化面板
+		CORSUtils.panelNormal();
 		CommonProject.scripts.workResults.methods.init();
 		// 固定显示答题结果面板
-		pinWorkPanel();
+		CORSUtils.pinWorkPanel();
 
 		const chapterTestTaskQuestionTitleTransform = (titles: (HTMLElement | undefined)[]) => {
 			const removed = removeRedundantWords(
@@ -1965,6 +1968,11 @@ const JobRunner = {
 			}
 		});
 
+		// 还原尺寸状态
+		if (visual_state === 'minimize' && CommonProject.scripts.render.cfg.visual !== 'minimize') {
+			CORSUtils.panelMinimize();
+		}
+
 		worker.emit('done');
 	},
 	/**
@@ -2157,9 +2165,18 @@ function answerWrapperEmptyWarning(duration: number) {
 }
 
 /**
- * 答题程序位于其他 iframe 中，而 methods.pin 是依赖于 setTab 方法的，所以需要重新定义一个顶层函数来调用 pin 方法
+ * 答题程序位于其他 iframe 中，而 methods.pin 等 是依赖于 setTab 方法的，所以需要重新定义一个顶层函数来调用 pin 方法
  * 跨域调用
  */
-const pinWorkPanel = cors.defineTopFunction('cx.pin.work', () => {
-	CommonProject.scripts.render.methods.pin(CommonProject.scripts.workResults);
-});
+
+const CORSUtils = {
+	pinWorkPanel: cors.defineTopFunction('cx.pin.work', () => {
+		CommonProject.scripts.render.methods.pin(CommonProject.scripts.workResults);
+	}),
+	panelNormal: cors.defineTopFunction('cx.panel.normal', () => {
+		CommonProject.scripts.render.methods.normal();
+	}),
+	panelMinimize: cors.defineTopFunction('cx.panel.minimize', () => {
+		CommonProject.scripts.render.methods.minimize();
+	})
+};
