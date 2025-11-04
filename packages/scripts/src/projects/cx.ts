@@ -1621,8 +1621,9 @@ const JobRunner = {
 			}, 3000);
 
 			const playFunction = async () => {
-				await waitForFaceRecognition();
-				await waitForNewFaceRecognition();
+				// 这里先判断，再检测，否则后续添加多个 await 会导致视频启动等待时间过长，导致用户误认为脚本失效
+				if (hasFaceRecognition()) await waitForFaceRecognition();
+				if (hasNewFaceRecognition()) await waitForNewFaceRecognition();
 				if (media.ended === false) {
 					await $.sleep(1000);
 					media.play();
@@ -2045,6 +2046,32 @@ async function readerAndFillHandle(searchInfos: SearchInformation[], list: HTMLE
 	return { finish: false };
 }
 
+function hasFaceRecognition() {
+	// 人脸元素有时候 src 属性为空字符串，所以这里需要判断 src 是否为空字符串，如是则人脸识别会出现。
+	const faces = $$el<HTMLImageElement>('#fcqrimg', top?.document);
+	let active = false;
+	for (const face of faces) {
+		const src = face.getAttribute('src');
+		if (src) {
+			active = true;
+			break;
+		}
+	}
+	return active;
+}
+
+function hasNewFaceRecognition() {
+	const faces = $$el<HTMLImageElement>('.chapterVideoFaceMaskDiv', top?.document);
+	let active = false;
+	for (const face of faces) {
+		if (face.style.display !== 'none') {
+			active = true;
+			break;
+		}
+	}
+	return active;
+}
+
 /**
  * 等待新版人脸识别，视频开头会出现的人脸识别
  */
@@ -2054,14 +2081,7 @@ function waitForNewFaceRecognition() {
 	return new Promise<void>((resolve) => {
 		const interval = setInterval(() => {
 			// 人脸元素有时候 src 属性为空字符串，所以这里需要判断 src 是否为空字符串，如是则人脸识别会出现。
-			const faces = $$el<HTMLImageElement>('.chapterVideoFaceMaskDiv', top?.document);
-			let active = false;
-			for (const face of faces) {
-				if (face.style.display !== 'none') {
-					active = true;
-					break;
-				}
-			}
+			const active = hasNewFaceRecognition();
 			if (active) {
 				if (!notified) {
 					notified = true;
@@ -2079,7 +2099,6 @@ function waitForNewFaceRecognition() {
 		}, 3000);
 	});
 }
-
 /**
  * 等待人脸识别
  */
@@ -2089,15 +2108,7 @@ function waitForFaceRecognition() {
 	return new Promise<void>((resolve) => {
 		const interval = setInterval(() => {
 			// 人脸元素有时候 src 属性为空字符串，所以这里需要判断 src 是否为空字符串，如是则人脸识别会出现。
-			const faces = $$el<HTMLImageElement>('#fcqrimg', top?.document);
-			let active = false;
-			for (const face of faces) {
-				const src = face.getAttribute('src');
-				if (src) {
-					active = true;
-					break;
-				}
-			}
+			const active = hasFaceRecognition();
 			if (active) {
 				if (!notified) {
 					notified = true;
