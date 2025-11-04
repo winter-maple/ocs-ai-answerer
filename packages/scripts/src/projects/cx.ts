@@ -591,13 +591,6 @@ export const CXProject = Project.create({
 			namespace: 'cx.new.study-dispatcher',
 			hideInPanel: true,
 			async oncomplete() {
-				// 注册快捷菜单
-				$menu('🖥️', { scriptPanelLink: CXProject.scripts.study });
-				$menu('⚙️', { scriptPanelLink: CommonProject.scripts.settings });
-				$menu('🌏', { scriptPanelLink: CommonProject.scripts.workResults });
-				$menu('📄', { scriptPanelLink: BackgroundProject.scripts.console });
-				$menu('📥', { scriptPanelLink: BackgroundProject.scripts.update });
-
 				// 开始任务切换
 				const restudy = CXProject.scripts.study.cfg.restudy;
 

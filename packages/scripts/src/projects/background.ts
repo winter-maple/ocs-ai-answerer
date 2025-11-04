@@ -1,9 +1,22 @@
 import { RemotePlaywright, request } from '@ocsjs/core';
-import { $ui, $gm, $message, $modal, $store, Project, Script, StoreListenerType, h, $, MessageElement } from 'easy-us';
+import {
+	$ui,
+	$gm,
+	$message,
+	$modal,
+	$store,
+	Project,
+	Script,
+	StoreListenerType,
+	h,
+	$,
+	MessageElement,
+	$menu
+} from 'easy-us';
 import semver_gt from 'semver/functions/gt';
 import semver_valid from 'semver/functions/valid';
 import { CommonProject } from './common';
-import { CXProject, definedProjects, ICourseProject, ZHSProject, ZJYProject } from '..';
+import { CXProject, definedProjects, ICourseProject, IcveMoocProject, ZHSProject, ZJYProject } from '..';
 import { RenderScript } from '../render';
 import { SearchInfosElement } from '../elements/search.infos';
 import { $render } from '../utils/render';
@@ -849,6 +862,7 @@ export const BackgroundProject = Project.create({
 					ZHSProject.scripts['wisdom-study'].matches,
 					ZHSProject.scripts['xnk-study'].matches,
 					ICourseProject.scripts.study.matches,
+					IcveMoocProject.scripts.study.matches,
 					ZJYProject.scripts.study.matches
 				]
 					.flat()
@@ -879,6 +893,48 @@ export const BackgroundProject = Project.create({
 						visibleDetect();
 					}, 1000);
 				}
+			}
+		}),
+		menus: new Script({
+			name: '📁 菜单管理',
+			hideInPanel: true,
+			matches: [['所有页面', /.*/]],
+			async oncomplete() {
+				const currentStudyScript = [
+					[CXProject.scripts.studyDispatcher, CXProject.scripts.study],
+					ZHSProject.scripts['gxk-study'],
+					ZHSProject.scripts['xnk-study'],
+					ZHSProject.scripts.hike,
+					ZHSProject.scripts['smart-study'],
+					ZHSProject.scripts['wisdom-study'],
+					ZHSProject.scripts['xnk-study'],
+					[ICourseProject.scripts.dispatcher, ICourseProject.scripts.study],
+					[ZJYProject.scripts.dispatcher, ZJYProject.scripts.study],
+					IcveMoocProject.scripts.study
+				]
+					.map((m) => {
+						const url = window.location.href;
+
+						const data = { matches: Array.isArray(m) ? m[0].matches : m.matches, target: Array.isArray(m) ? m[1] : m };
+
+						if (
+							data.matches.some((regexp) => {
+								const r = Array.isArray(regexp) ? regexp[1] : regexp;
+								return typeof r === 'string' ? url.includes(r) : r.test(url);
+							})
+						) {
+							return data.target;
+						}
+					})
+					.find((m) => m !== undefined);
+
+				// 注册快捷菜单
+				await $menu('🏠', { scriptPanelLink: CommonProject.scripts.guide });
+				if (currentStudyScript) await $menu('🖥️', { scriptPanelLink: currentStudyScript });
+				await $menu('🔎', { scriptPanelLink: CommonProject.scripts.workResults });
+				await $menu('⚙️', { scriptPanelLink: CommonProject.scripts.settings });
+				await $menu('📥', { scriptPanelLink: BackgroundProject.scripts.update });
+				await $menu('📄', { scriptPanelLink: BackgroundProject.scripts.console });
 			}
 		})
 	}

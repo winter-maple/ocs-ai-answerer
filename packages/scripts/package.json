@@ -41,13 +41,12 @@
 		"@ocsjs/core": "workspace:*",
 		"@rollup/plugin-commonjs": "^24.0.0",
 		"browser-env": "^3.3.0",
-		"easy-us": "^0.0.35",
+		"easy-us": "^0.0.40",
 		"lodash": "^4.17.21",
 		"markdown-it": "^13.0.1",
 		"marked": "^4.2.12",
 		"md5": "^2.3.0",
 		"semver": "^7.3.5",
-		"typr.js": "^1.0.0",
-		"ua-parser-js": "^2.0.6"
+		"typr.js": "^1.0.0"
 	}
 }

@@ -814,7 +814,7 @@ export const CommonProject = Project.create({
 			}
 		}),
 		workResults: new Script({
-			name: '🌏 搜索结果',
+			name: '🔎 搜索结果',
 			matches: [['所有页面', /.*/]],
 			namespace: 'common.work-results',
 			configs: {
