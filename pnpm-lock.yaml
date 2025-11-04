@@ -79,8 +79,8 @@ importers:
   packages/core:
     dependencies:
       easy-us:
-        specifier: ^0.0.30
-        version: 0.0.30(typescript@4.9.5)
+        specifier: ^0.0.31
+        version: 0.0.31(typescript@4.9.5)
       events:
         specifier: ^3.3.0
         version: 3.3.0
@@ -1985,8 +1985,8 @@ packages:
       object.defaults: 1.1.0
     dev: true
 
-  /easy-us@0.0.30(typescript@4.9.5):
-    resolution: {integrity: sha512-ZT7ptmvvUNjhFKmvXEeo4iIWU7z6kmiuVgwiVD/BYlbnvoBM1idTumMbGZhjMSsF6pM1dBVfUq9FTqtpzURPBA==}
+  /easy-us@0.0.31(typescript@4.9.5):
+    resolution: {integrity: sha512-JSZgCHfxN+CS6MbbZ4oaxws2YdaYPCnYcC9dMJXlHA1oC4+VvgUmXvp8lVZRvJTcQRnCZzKOMMK4+/OfNYgwtw==}
     dependencies:
       '@rollup/plugin-typescript': 11.1.6(typescript@4.9.5)
       events: 3.3.0

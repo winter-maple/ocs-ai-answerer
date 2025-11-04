@@ -1696,17 +1696,14 @@ const JobRunner = {
 			return answerWrapperEmptyWarning(0);
 		}
 
-		$message.info({
-			content: h('div', ['正在答题中，答题结果请前往：通用-搜索结果 进行查看']),
-			duration: 10
-		});
-
 		$console.info('开始章节测试');
 
 		const frameWindow = frame.contentWindow;
 		const { TiMu } = domSearchAll({ TiMu: '.TiMu' }, frameWindow!.document);
 
 		CommonProject.scripts.workResults.methods.init();
+		// 固定显示答题结果面板
+		pinWorkPanel();
 
 		const chapterTestTaskQuestionTitleTransform = (titles: (HTMLElement | undefined)[]) => {
 			const removed = removeRedundantWords(
@@ -2149,3 +2146,11 @@ function answerWrapperEmptyWarning(duration: number) {
 		});
 	}
 }
+
+/**
+ * 答题程序位于其他 iframe 中，而 methods.pin 是依赖于 setTab 方法的，所以需要重新定义一个顶层函数来调用 pin 方法
+ * 跨域调用
+ */
+const pinWorkPanel = cors.defineTopFunction('cx.pin.work', () => {
+	CommonProject.scripts.render.methods.pin(CommonProject.scripts.workResults);
+});
