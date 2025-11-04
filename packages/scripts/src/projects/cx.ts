@@ -1260,6 +1260,28 @@ export async function study(
 					extraTitle: '超星学习通学习脚本'
 				});
 			}
+
+			// 找到未完成
+			const elements = CXAnalyses.getChapterInfos()
+				.filter((chapter) => chapter.unFinishCount !== 0)
+				.map((el) => el.element.parentElement as HTMLElement);
+			if (elements.length === 0) {
+				$console.warn('未找到未完成的章节，无法跳转下一章，请手动切换。');
+				return;
+			}
+
+			let nextChapter = elements[0];
+			// 如果当前章节未完成，则跳转到下一个未完成章节
+			const currentIndex = elements.findIndex((el) => el.classList.contains('posCatalog_active'));
+			if (currentIndex !== -1 && currentIndex + 1 < elements.length) {
+				nextChapter = elements[currentIndex + 1];
+			} else {
+				$console.warn('未找到未完成的章节，无法跳转下一章，请手动切换。');
+				return;
+			}
+
+			nextChapter.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			nextChapter.click();
 		} else if (CXProject.scripts.study.cfg.mode === 'next') {
 			const curCourseId = $el<HTMLInputElement>('#curCourseId', top?.document);
 			const curChapterId = $el<HTMLInputElement>('#curChapterId', top?.document);
