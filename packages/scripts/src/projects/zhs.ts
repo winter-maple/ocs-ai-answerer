@@ -84,7 +84,7 @@ class StudyVideoH5 implements ZHSProcessor {
 		if (controlsBar && sl) {
 			controlsBar.style.display = 'block';
 			sl.style.display = 'block';
-			const selector = `.speedList [rate="${rate === 1 ? '1.0' : rate}"]`;
+			const selector = `.speedList [rate="${parseInt(String(rate)) === 1 ? '1.0' : rate}"]`;
 			if (this.remotePage) {
 				await this.remotePage.click(selector);
 			} else {
