@@ -31,14 +31,13 @@ export class SearchInfosElement extends HTMLElement {
 
 		this.append(
 			h('div', [h('span', { innerHTML: question }), createQuestionTitleExtra(this.question)], (div) => {
-				div.style.padding = '4px';
-			}),
-			h('hr')
+				div.className = 'search-info-title';
+			})
 		);
 
 		this.append(
 			...this.infos.map((info) => {
-				return h('details', { open: true }, [
+				return h('details', { open: true, className: 'search-info-details' }, [
 					h('summary', [h('a', { href: info.homepage, innerText: info.name, target: '_blank' })]),
 
 					...(info.error

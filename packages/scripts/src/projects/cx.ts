@@ -13,21 +13,7 @@ import {
 	domSearchAll,
 	SearchInformation
 } from '@ocsjs/core';
-import {
-	$modal,
-	$message,
-	h,
-	$store,
-	$menu,
-	MessageElement,
-	Project,
-	Script,
-	$el,
-	$gm,
-	$$el,
-	$ui,
-	cors
-} from 'easy-us';
+import { $modal, h, $store, MessageElement, Project, Script, $el, $gm, $$el, $ui, cors, $message } from 'easy-us';
 
 import { CommonProject } from './common';
 import { workNotes, volume, playbackRate } from '../utils/configs';
@@ -155,8 +141,8 @@ export const CXProject = Project.create({
 				['首页', 'https://www.chaoxing.com'],
 				['旧版个人首页', 'chaoxing.com/space/index'],
 				['新版个人首页', 'chaoxing.com/base'],
-				['课程首页', 'chaoxing.com/mycourse'],
-				['新版课程首页', 'chaoxing.com/mooc2-ans/mycourse']
+				['学习页面', 'chaoxing.com/mycourse'],
+				['新版学习页面', 'chaoxing.com/mooc2-ans/mycourse']
 			],
 			namespace: 'cx.guide',
 			configs: {
@@ -165,7 +151,11 @@ export const CXProject = Project.create({
 				}
 			},
 			oncomplete() {
-				CommonProject.scripts.render.methods.pin(this);
+				if (['chaoxing.com/mycourse', 'chaoxing.com/mooc2-ans/mycourse'].some((path) => location.href.includes(path))) {
+					$message.success('已进入学习页面，请等待自动运行...');
+					return;
+				}
+				$message.info('请手动进入视频、作业、考试页面，脚本会自动运行。');
 			}
 		}),
 		study: new Script({
@@ -307,7 +297,9 @@ export const CXProject = Project.create({
 									'⚠️高倍速可能导致学习记录清空/回退',
 									'⚠️超星后台可以看到学习时长，请谨慎设置',
 									'⚠️如已清空/回退，请降低倍速至1-2倍'
-								])
+								]),
+								maskCloseable: false,
+								confirmButtonText: '我已知晓风险'
 							});
 						}
 					}) || 0;

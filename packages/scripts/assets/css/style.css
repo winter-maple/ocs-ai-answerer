@@ -315,6 +315,10 @@ script-panel-element + script-panel-element {
   line-height: 26px;
   letter-spacing: 1px;
 }
+.secondary {
+  font-size: 12px;
+  color: #8b8b8b;
+}
 .tooltip-container {
   z-index: 99999999999999;
   margin: 12px 0px 0px 12px;
@@ -837,11 +841,14 @@ search-infos-element .search-result .answer {
   color: #7c7c7c;
 }
 search-infos-element .search-result .answer code {
-  background-color: #f3f3f3;
-  padding: 2px 4px;
+  border-bottom: 1px solid #dcdcdc;
+  padding: 2px 0px;
   border-radius: 2px;
   margin: 4px;
-  line-height: 20px;
+  line-height: 22px;
+}
+search-infos-element .search-result .answer code + code {
+  margin-left: 4px;
 }
 search-infos-element .search-result .search-result-answer-tag {
   padding: 2px 4px;
@@ -909,6 +916,28 @@ search-infos-element .error {
   text-decoration: underline;
   color: gray;
   cursor: pointer;
+}
+.work-result-list {
+  max-height: 400px;
+  overflow: auto;
+  margin: 12px 0px;
+  padding: 6px;
+  border: 1px solid #e1e1e1;
+  border-radius: 4px;
+}
+.search-info-title {
+  border: 1px solid #e1e1e1;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+.search-info-title::before {
+  content: '题目：';
+  font-size: 12px;
+  color: #8b8b8b;
+}
+.search-info-details {
+  margin-left: 4px;
 }
 .console {
   max-height: 300px;
@@ -1006,7 +1035,7 @@ search-infos-element .error {
   box-shadow: 0px 8px 16px 0px #00000033;
   z-index: 1;
   border-radius: 4px;
-  padding: 12px;
+  padding: 8px 12px;
   min-width: 120px;
 }
 .dropdown-content.show {
@@ -1017,12 +1046,14 @@ search-infos-element .error {
   z-index: 999;
 }
 .dropdown-content .dropdown-option {
+  padding-left: 4px;
   white-space: nowrap;
 }
 .dropdown-content .dropdown-option:hover {
   background-color: #f3f3f3;
 }
 .dropdown-content .dropdown-option.active {
+  background-color: #1890ff1a;
   color: #1890ff;
 }
 .space {
@@ -1030,4 +1061,11 @@ search-infos-element .error {
 }
 .config-details label {
   padding-left: 12px;
+}
+.empty-work-result {
+  padding: 24px;
+  color: #a1a1a1;
+  background-color: #f7f7f7;
+  text-align: center;
+  border-radius: 6px;
 }
