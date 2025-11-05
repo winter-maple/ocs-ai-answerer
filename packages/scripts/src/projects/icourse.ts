@@ -1,5 +1,5 @@
 import { $, OCSWorker, RemotePage, defaultAnswerWrapperHandler } from '@ocsjs/core';
-import { $message, Project, Script, $ui } from 'easy-us';
+import { $message, Project, Script, $ui, $store } from 'easy-us';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { CommonProject } from './common';
 import { commonWork, optimizationElementWithImage, removeRedundantWords, simplifyWorkResult } from '../utils/work';
@@ -220,8 +220,19 @@ export const ICourseProject = Project.create({
 									$msg_and_log('info', '随堂测验已完成，即将跳过。');
 								}
 							} else if (isJob('u-icon-text')) {
-								// 文档无需处理
-								$msg_and_log('info', '文档无需处理，即将跳过。');
+								const key = 'text-job-reload';
+								if ((await $store.getTab(key)) === '1') {
+									$store.setTab(key, '0');
+									$msg_and_log('info', '文档已完成，即将跳过。');
+								} else {
+									// 需要刷新才能完成富文本文档任务点
+									$store.setTab(key, '1');
+									// 文档无需处理
+									$msg_and_log('info', '文档无需处理，将在刷新完成后跳过。');
+									await $.sleep(3000);
+									window.location.reload();
+									return;
+								}
 							} else {
 								hasJob = false;
 							}
