@@ -355,7 +355,11 @@ function isZyk() {
 }
 
 function getVueBindElement() {
-	return $el('.guide')?.__vue__ || $el('.teach')?.__vue__;
+	/**
+	 * 2025/11月新PPT，使用 FilePreview 获取
+	 */
+
+	return $el('.FilePreview')?.__vue__ || $el('.guide')?.__vue__ || $el('.teach')?.__vue__;
 }
 
 async function next() {
