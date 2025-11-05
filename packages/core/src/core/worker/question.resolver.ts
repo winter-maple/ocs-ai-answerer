@@ -209,7 +209,7 @@ export function defaultQuestionResolve<E>(
 						if (options[index] === undefined) {
 							continue;
 						}
-						await handler('single', options[index].innerText, options[index], ctx);
+						await handler('multiple', options[index].innerText, options[index], ctx);
 						plainOptions.push(options[index]);
 					}
 				}
