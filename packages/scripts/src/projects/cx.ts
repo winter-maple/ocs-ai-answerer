@@ -21,7 +21,7 @@ import { commonWork, optimizationElementWithImage, removeRedundantWords, simplif
 import md5 from 'md5';
 // @ts-ignore
 import Typr from 'typr.js';
-import { $console, BackgroundProject } from './background';
+import { $console } from './background';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { waitForMedia } from '../utils/study';
 

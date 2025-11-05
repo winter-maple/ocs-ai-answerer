@@ -945,6 +945,8 @@ export const BackgroundProject = Project.create({
 						) {
 							return data.target;
 						}
+
+						return undefined;
 					})
 					.find((m) => m !== undefined);
 
