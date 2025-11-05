@@ -239,7 +239,11 @@ export const BackgroundProject = Project.create({
 				});
 			},
 			async onactive() {
-				if ($.isInTopWindow() && this.cfg.closeSync === false) {
+				if ($.isInTopWindow()) {
+					if (this.cfg.closeSync) {
+						$console.log('配置同步已关闭');
+						return;
+					}
 					this.cfg.sync_status = 'unconnect';
 					try {
 						const res = await request('http://localhost:15319/browser', {
@@ -343,8 +347,21 @@ export const BackgroundProject = Project.create({
 											panel.configsContainer.prepend(panel.lockWrapper);
 
 											panel.lockWrapper.title =
-												'🚫已同步OCS桌面版软件配置，如需修改请在桌面版软件的左侧栏设置-通用设置-OCS配置，中进行修改。或者前往脚本悬浮窗:后台-软件配置同步 关闭配置同步功能。';
+												'🚫已同步OCS桌面版软件配置，如需修改请在桌面版软件的左侧栏设置-通用设置-OCS配置，中进行修改。\n\n或者前往脚本悬浮窗:后台-软件配置同步 关闭配置同步功能。\n\n可双击强制修改，并关闭同步配置';
 											panel.lockWrapper = $ui.tooltip(panel.lockWrapper);
+											panel.lockWrapper.addEventListener('dblclick', () => {
+												panel.configsContainer.classList.remove('lock');
+												panel.lockWrapper.remove();
+												script.onrender = originalRender;
+												$message.warn({
+													content: '已解除配置同步，可正常修改配置。想开启同步请前往：后台-软件配置同步',
+													duration: 10
+												});
+												this.cfg.closeSync = true;
+												if (script.panel && script.header) {
+													script.onrender?.({ panel: script.panel, header: script.header });
+												}
+											});
 										}
 									};
 									// 重新执行渲染
@@ -899,7 +916,7 @@ export const BackgroundProject = Project.create({
 			name: '📁 菜单管理',
 			hideInPanel: true,
 			matches: [['所有页面', /.*/]],
-			async oncomplete() {
+			async onactive() {
 				const currentStudyScript = [
 					[CXProject.scripts.studyDispatcher, CXProject.scripts.study],
 					ZHSProject.scripts['gxk-study'],
@@ -915,7 +932,10 @@ export const BackgroundProject = Project.create({
 					.map((m) => {
 						const url = window.location.href;
 
-						const data = { matches: Array.isArray(m) ? m[0].matches : m.matches, target: Array.isArray(m) ? m[1] : m };
+						const data = {
+							matches: Array.isArray(m) ? m[0].matches : m.matches,
+							target: Array.isArray(m) ? m[1] : m
+						};
 
 						if (
 							data.matches.some((regexp) => {
