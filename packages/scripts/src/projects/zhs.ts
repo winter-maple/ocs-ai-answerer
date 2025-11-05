@@ -2022,11 +2022,11 @@ async function watch(
 	};
 
 	$message.info('开始播放');
-	await $.sleep(1000);
 
 	// 部分用户视频加载很慢，这里等待一下
 	try {
 		const media = await waitForMedia({ timeout: 10 * 1000 });
+		media.volume = options.volume;
 		// 如果已经播放完了，则重置视频进度
 		media.pause();
 		// 固定进度条便于下方点击音量等按钮
@@ -2034,6 +2034,7 @@ async function watch(
 	} catch (e) {
 		return await reload(e);
 	}
+	await $.sleep(1000);
 
 	const video = await set();
 	if (!video) {
