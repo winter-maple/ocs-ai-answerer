@@ -11,7 +11,7 @@ import {
 } from '../utils/work';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { $console, BackgroundProject } from './background';
-import { waitForMedia } from '../utils/study';
+import { waitForMedia, waitForElement } from '../utils/study';
 import { $playwright } from '../utils/app';
 import { $render } from '../utils/render';
 
@@ -26,6 +26,18 @@ const state = {
 		stopMessage: undefined as MessageElement | undefined
 	}
 };
+
+/**
+ * 掌握度页面
+ */
+const zwd_pages = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'];
+
+const gxk_read_notes = [
+	'⚠️ 如果未开始答题，请尝试刷新页面。',
+	'⚠️ 禁止同时打开多个作业/考试页面。',
+	['⚠️ 答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。'],
+	['⚠️ 暂停后手动操作请确保每个题目都点击下一题', '进行答案保存（不然不会保存，提交没分）']
+];
 
 /**
  * 2024 下半年智慧树更新至两个版本，其中一个改进了部分UI，所以这里使用两个处理器 StudyVideoH5,FusionCourseH5 对不同UI进行处理
@@ -893,12 +905,16 @@ export const ZHSProject = Project.create({
 					defaultValue: $ui.notes([
 						'自动答题前请在 “通用-全局设置” 中设置题库配置。',
 						'可以搭配 “通用-在线搜题” 一起使用。',
-						'⚠️开始前请仔细阅读以下事项：⚠️',
-						'⚠️-如果未开始答题，请尝试刷新页面。',
-						'⚠️-禁止同时打开多个作业/考试页面。',
-						['⚠️-答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。'],
-						['⚠️-暂停后手动操作请确保每个题目都点击下一题', '进行答案保存（不然不会保存，提交没分）']
+						...gxk_read_notes
 					]).outerHTML
+				},
+				workDelay: {
+					label: '作业答题开始时间延迟（秒）',
+					defaultValue: 3,
+					attrs: { type: 'number', min: 1, step: 1, max: 10 }
+				},
+				readNotes: {
+					defaultValue: false
 				}
 			},
 			methods() {
@@ -929,10 +945,43 @@ export const ZHSProject = Project.create({
 
 						if (isExam || isWork) {
 							const workInfo = await getWorkInfo(remotePage);
+
+							// 移动到边缘
+							$render.moveToEdge();
+							CommonProject.scripts.render.methods.normal();
+							// 固定脚本
+							CommonProject.scripts.render.methods.pin(this);
+
+							// 阅读须知
+							if (this.cfg.readNotes === false) {
+								const notes = $ui.notes(gxk_read_notes).outerHTML;
+								const start = await new Promise<boolean>((resolve, reject) => {
+									$modal.confirm({
+										title: isExam ? '脚本考前须知' : '脚本作业须知',
+										content: notes,
+										confirmButtonText: '我已知晓，开始自动答题',
+										cancelButtonText: '取消答题',
+										maskCloseable: false,
+										onConfirm: () => {
+											this.cfg.readNotes = true;
+											resolve(true);
+										},
+										onCancel() {
+											resolve(false);
+										}
+									});
+								});
+								if (!start) {
+									$message.info({ content: '已取消答题，如需答题请刷新页面重新开始。' });
+									return;
+								}
+							}
+
 							setTimeout(() => {
 								$message.info({ content: `开始${isExam ? '考试' : '作业'}` });
 								commonWork(this, {
-									workerProvider: (opts) => gxkWorkAndExam(workInfo, opts)
+									workerProvider: (opts) => gxkWorkAndExam(workInfo, opts),
+									start_delay_seconds: this.cfg.workDelay ?? 3
 								});
 							}, 1000);
 						} else {
@@ -1222,7 +1271,7 @@ export const ZHSProject = Project.create({
 			}
 		}),
 		'smart-work': new Script({
-			name: '✍️ 智慧课程-作业脚本',
+			name: '✍️ 智慧课程-作业/掌握度脚本',
 			matches: [
 				['智慧课程作业页面', 'smartcourseexam.zhihuishu.com/ReviewExam'],
 				['智慧课程-掌握提升页面', 'studentexamcomh5.zhihuishu.com/studentReviewTestOrExam'],
@@ -1235,25 +1284,31 @@ export const ZHSProject = Project.create({
 					defaultValue: $ui.notes([
 						'自动答题前请在 “通用-全局设置” 中设置题库配置。',
 						'可以搭配 “通用-在线搜题” 一起使用。',
-						'多个掌握度可以重复使用重新答题按钮以便快速完成。',
-						'⚠️开始前请仔细阅读以下事项：⚠️',
-						'⚠️-如果未开始答题，请尝试刷新页面。',
-						'⚠️-禁止一次性打开多个作业/考试页面。',
-						['⚠️-答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。']
+						'⚠️ 如果没开始答题，请尝试刷新页面。',
+						'⚠️ 禁止一次性打开多个作业/考试页面。',
+						...(zwd_pages.some((domain) => location.href.includes(domain))
+							? []
+							: ['⚠️ 答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。'])
 					]).outerHTML
+				},
+				workDelay: {
+					label: '作业答题开始时间延迟（秒）',
+					defaultValue: 3,
+					attrs: { type: 'number', min: 1, step: 1, max: 10 }
 				}
 			},
 			methods() {
 				return {
 					start: async () => {
-						await $.sleep(3000);
 						// 检查是否为软件环境
+						CommonProject.scripts.render.methods.pin(this);
 
 						let remotePage: RemotePage | undefined;
 						// 掌握度
-						const is_zwd = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'].some((domain) =>
-							location.href.includes(domain)
-						);
+						const is_zwd = zwd_pages.some((domain) => location.href.includes(domain));
+
+						is_zwd ? await waitForElement('.exam-item') : await waitForElement('#questionContent');
+
 						if (is_zwd) {
 							// 这两个页面不需要软件辅助
 						} else {
@@ -1262,22 +1317,21 @@ export const ZHSProject = Project.create({
 							if (!remotePage) {
 								return $playwright.showError();
 							}
+							// 移动到左上角
+							$render.moveToEdge();
+							$message.warn({ content: '答题完毕之前请勿操作页面！', duration: 0 });
 						}
-						// 移动到左上角
-						$render.moveToEdge();
 
-						$message.warn({ content: '即将开始答题，答题完毕之前请勿操作页面！', duration: 0 });
-						setTimeout(() => {
-							commonWork(this, {
-								workerProvider: (opts) => {
-									if (is_zwd) {
-										return fusioncourseWork(remotePage, opts);
-									} else {
-										return smartWork(remotePage, opts);
-									}
+						commonWork(this, {
+							workerProvider: (opts) => {
+								if (is_zwd) {
+									return fusioncourseWork(remotePage, opts);
+								} else {
+									return smartWork(remotePage, opts);
 								}
-							});
-						}, 3000);
+							},
+							start_delay_seconds: this.cfg.workDelay ?? 3
+						});
 					}
 				};
 			},
@@ -2516,17 +2570,15 @@ function smartWork(
 			/** 自定义处理器 */
 			async handler(type, answer, option, ctx) {
 				if (type === 'judgement' || type === 'single' || type === 'multiple') {
-					let label: HTMLElement | null = null;
-					if (type === 'multiple') {
-						label = option.querySelector<HTMLElement>('.el-checkbox__input:not(.is-checked)');
-					} else {
-						label = option.querySelector<HTMLElement>('i.iconfont:not(.checkedIcon)');
-					}
-					if (label) {
+					let opt = option.querySelector<HTMLElement>(
+						'.el-checkbox__input:not(.is-checked),i.iconfont:not(.checkedIcon)'
+					);
+
+					if (opt) {
 						if (remotePage) {
-							await remotePage.click(label);
+							await remotePage.click(opt);
 						} else {
-							label.click();
+							opt.click();
 						}
 						await $.sleep(200);
 					}
@@ -2571,7 +2623,7 @@ function smartWork(
 			else first.click();
 			await $.sleep(3000);
 		}
-
+		let count = 0;
 		while (next && worker.isClose === false) {
 			await worker.doWork({ enable_debug: true });
 			next = getNextBtn();
@@ -2581,10 +2633,16 @@ function smartWork(
 				else next.click();
 				// 等待题目加载
 				await $.sleep(1000);
+				count++;
 			}
 		}
 
-		$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+		$message.info({
+			content: '作业/考试完成，请自行检查后保存或提交。',
+			duration:
+				// 题目过多则不自动关闭
+				count > 10 ? 0 : 30
+		});
 		worker.emit('done');
 		// 答题完成后，题库选项点击才会同步题目，否则会导致题目错乱
 		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'zhs-smart';
@@ -2653,14 +2711,16 @@ function fusioncourseWork(
 			/** 自定义处理器 */
 			async handler(type, answer, option, ctx) {
 				if (type === 'judgement' || type === 'single' || type === 'multiple') {
-					let label: HTMLElement | null = null;
-					if (type === 'multiple') {
-						label = option.querySelector<HTMLElement>('.el-checkbox__input:not(.is-checked)');
-					} else {
-						label = option.querySelector<HTMLElement>('.radio__input:not(.is-checked)');
-					}
-					if (label) {
-						label.click();
+					let opt = option.querySelector<HTMLElement>(
+						'.el-checkbox__input:not(.is-checked),.el-radio__input:not(.is-checked)'
+					);
+
+					if (opt) {
+						if (remotePage) {
+							await remotePage.click(opt);
+						} else {
+							opt.click();
+						}
 						await $.sleep(200);
 					}
 				}
@@ -2727,7 +2787,11 @@ function fusioncourseWork(
 				return;
 			}
 
-			$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+			$message.info({
+				content: '作业/考试完成，请自行检查后保存或提交。',
+				// 题目过多则不自动关闭
+				duration: res.length > 10 ? 0 : 30
+			});
 			worker.emit('done');
 		})
 		.catch((err) => {
