@@ -106,7 +106,6 @@ export const ZJYProject = Project.create({
 							ZJYProject.scripts.study.cfg.currentCourseId = courseId;
 							ZJYProject.scripts.study.cfg.courseList = courseData;
 							$message.success('课程数据获取成功，请点击课程章节开始学习');
-							return;
 						} else if (
 							[
 								'zyk.icve.com.cn/icve-study/coursePreview/courseware',
@@ -365,7 +364,7 @@ async function watchFile(pptReadPeriod: number) {
 		if (current >= total) {
 			break;
 		}
-		await $.sleep(pptReadPeriod);
+		await $.sleep(pptReadPeriod * 1000);
 		// 旧版PPT任务，新版使用 skip
 		try {
 			vue.next && vue.next();
