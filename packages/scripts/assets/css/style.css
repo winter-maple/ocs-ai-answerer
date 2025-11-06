@@ -1086,3 +1086,16 @@ search-infos-element .error {
   color: #ff4d4f;
   background-color: #fff1f0;
 }
+message-element {
+  animation: change 1s;
+}
+@keyframes change {
+  0% {
+    transform: translateY(10px);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

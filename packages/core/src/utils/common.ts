@@ -112,5 +112,31 @@ export const $ = {
 			(resizable ? 'yes' : 'no');
 
 		return window.open(url, winName, settings);
+	},
+	transition: async (
+		el: HTMLElement,
+		properties: keyof CSSStyleDeclaration,
+		duration_ms: number,
+		val: any,
+		options?: {
+			reset_ms?: number;
+			timing_function?: string;
+		}
+	) => {
+		return new Promise<void>((resolve) => {
+			const original_val = Reflect.get(el.style, properties) || '';
+			el.style.transition = `${String(properties)} ${duration_ms}s ${options?.timing_function || 'ease-in-out'}`;
+			Reflect.set(el.style, properties, val);
+			el.addEventListener('transitionend', function handler() {
+				el.removeEventListener('transitionend', handler);
+				setTimeout(() => {
+					Reflect.set(el.style, properties, original_val);
+					setTimeout(() => {
+						el.style.transition = '';
+					}, duration_ms * 1000);
+				}, (options?.reset_ms || 0) * 1000);
+				resolve();
+			});
+		});
 	}
 };

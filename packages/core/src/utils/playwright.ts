@@ -1,6 +1,7 @@
 import type { Page } from 'playwright-core';
 import { request } from '../core/utils';
 import { $ } from './common';
+import { $elements, $message } from 'easy-us';
 
 export type Base64 = string;
 
@@ -172,13 +173,28 @@ export class RemotePlaywright {
 						// 如果是传入的元素对象，那么就解析元素的坐标进行点击
 						// 这里滑动的时间可能会比较长，取决于页面的长度，所以这里多等待一点时间
 						await $.sleep(500);
+						const rect = el.getBoundingClientRect();
+
+						// 移动可能阻挡点击的脚本面板
+						const elFromPoint = $elements.root?.elementFromPoint(
+							rect.left + rect.width / 2,
+							rect.top + rect.height / 2
+						);
+						if (elFromPoint && $elements.root && $elements.root.contains(elFromPoint)) {
+							// 如果元素在根节点内，则隐藏面板
+							const panel = $elements.root.querySelector<HTMLElement>('container-element');
+
+							if (panel) {
+								$message.info({ content: '检测到脚本阻挡点击位置，已自动移开', duration: 2 });
+								await $.transition(panel, 'left', 0.1, rect.left + rect.width / 2 + 100 + 'px', { reset_ms: 1 });
+							}
+						}
 
 						// 显示鼠标位置
 						if (configs?.show_debug_cursor) {
 							showMousePointer(el);
 						}
 
-						const rect = el.getBoundingClientRect();
 						data = {
 							page: window.location.href,
 							property: 'mouse.click',
