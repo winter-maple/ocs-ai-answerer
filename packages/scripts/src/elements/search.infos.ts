@@ -43,7 +43,7 @@ export class SearchInfosElement extends HTMLElement {
 			h(
 				'div',
 				[
-					h('span', { className: 'search-result-question-type' }, type_label),
+					...(type_label ? [h('span', { className: 'search-result-question-type' }, type_label)] : []),
 					h('span', { innerHTML: question }),
 					createQuestionTitleExtra(this.question)
 				],
