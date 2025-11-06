@@ -64,6 +64,8 @@ export interface WorkResult<E extends RawElements> {
 export interface SimplifyWorkResult {
 	/** 题目 */
 	question: string;
+	/** 题目类型 */
+	type: QuestionTypes;
 	/** 答题错误信息 */
 	error?: string;
 	/** 是否完成 */

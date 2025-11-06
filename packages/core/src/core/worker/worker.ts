@@ -86,10 +86,22 @@ export class OCSWorker<E extends RawElements = RawElements> extends CommonEventE
 
 			/** 执行元素搜索钩子 */
 			await this.opts.onElementSearched?.(ctx.elements, questionRoot);
-
 			/** 排除掉 null 的元素 */
 			ctx.elements.title = ctx.elements.title?.filter(Boolean) as HTMLElement[];
 			ctx.elements.options = ctx.elements.options?.filter(Boolean) as HTMLElement[];
+
+			/** 获取题目类型 */
+			if (typeof this.opts.work === 'object') {
+				ctx.type =
+					this.opts.work.type === undefined
+						? // 使用默认解析器
+						  defaultWorkTypeResolver(ctx)
+						: // 自定义解析器
+						typeof this.opts.work.type === 'string'
+						? this.opts.work.type
+						: this.opts.work.type(ctx);
+			}
+
 			results.push({
 				requested: false,
 				resolved: false,
@@ -116,18 +128,6 @@ export class OCSWorker<E extends RawElements = RawElements> extends CommonEventE
 			/** 检查是否暂停中 */
 			if (this.isStop) {
 				await waitForContinuate(() => this.isStop);
-			}
-
-			/** 获取题目类型 */
-			if (typeof this.opts.work === 'object') {
-				ctx.type =
-					this.opts.work.type === undefined
-						? // 使用默认解析器
-						  defaultWorkTypeResolver(ctx)
-						: // 自定义解析器
-						typeof this.opts.work.type === 'string'
-						? this.opts.work.type
-						: this.opts.work.type(ctx);
 			}
 
 			/** 查找答案 */

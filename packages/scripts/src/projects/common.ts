@@ -1078,7 +1078,7 @@ export const CommonProject = Project.create({
 								container.replaceChildren(
 									h('div', '暂无任何搜索结果~', (div) => {
 										div.style.marginTop = '12px';
-										div.className = 'empty-work-result';
+										div.className = 'result-info no-answer';
 									})
 								);
 							}
@@ -1131,34 +1131,30 @@ export const CommonProject = Project.create({
 						/** 渲染结果列表 */
 						const createResult = (result: SimplifyWorkResult | undefined) => {
 							if (result) {
-								const error = h('span', {}, (el) => (el.style.color = 'red'));
+								let info: HTMLElement | null = null;
 
 								if (result.requested === false && result.resolved === false) {
-									return h('div', [
-										result.question,
-										createQuestionTitleExtra(result.question),
-										h('hr'),
-										'当前题目还未开始搜索，请稍等。'
-									]);
-								} else {
-									if (result.error) {
-										error.innerText = result.error;
-										return h('div', [result.question, createQuestionTitleExtra(result.question), h('hr'), error]);
+									info = h('div', { className: 'result-info unresolved' }, '等待搜索中... 🔍');
+								} else if (result.error) {
+									info = h('div', { className: 'result-info error' }, '❌ ' + result.error);
 									} else if (result.searchInfos.length === 0) {
-										error.innerText = '此题未搜索到答案';
-										return h('div', [result.question, createQuestionTitleExtra(result.question), h('hr'), error]);
+									info = h('div', { className: 'result-info no-answer' }, '❌ 题库没搜索到答案');
 									} else {
-										error.innerText = '此题未完成, 可能是没有匹配的选项。';
+									info = result.finish
+										? null
+										: result.resolved === false
+										? h('div', { className: 'result-info unresolved' }, '等待顺序答题中... ⏱️')
+										: h('div', { className: 'result-info error' }, '❌ 此题未完成, 可能是没有匹配的选项。');
+								}
 
 										return h('div', [
-											...(result.finish ? [] : [result.resolved === false ? '正在等待答题中，请稍等。' : error]),
+									h('div', { className: 'alert-info-wrapper' }, [info ?? h('div')]),
 											h(SearchInfosElement, {
 												infos: result.searchInfos,
-												question: result.question
+										question: result.question,
+										type: result.type
 											})
 										]);
-									}
-								}
 							} else {
 								return h('div', 'undefined');
 							}

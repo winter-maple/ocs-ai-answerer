@@ -766,6 +766,15 @@ search-infos-element {
 		}
 	}
 
+	.search-result-question-type {
+		background-color: #e6f7ff;
+		border: 1px solid #91d5ff;
+		color: #1890ff;
+		margin-right: 8px;
+		padding: 0px 4px;
+		border-radius: 4px;
+	}
+
 	.error {
 		color: #ff6b6ded;
 		display: inline-block;
@@ -818,12 +827,7 @@ search-infos-element {
 	border-radius: 4px;
 	padding: 8px 12px;
 	margin-bottom: 12px;
-
-	&::before {
-		content: '题目：';
-		font-size: 12px;
-		color: #8b8b8b;
-	}
+	line-height: 20px;
 }
 
 .search-info-details {
@@ -985,10 +989,27 @@ search-infos-element {
 	}
 }
 
-.empty-work-result {
-	padding: 24px;
-	color: #a1a1a1;
-	background-color: #f7f7f7;
-	text-align: center;
-	border-radius: 6px;
+.alert-info-wrapper {
+	margin-bottom: 8px;
+
+	.result-info {
+		padding: 12px;
+		text-align: center;
+		border-radius: 6px;
+	}
+
+	.unresolved {
+		color: #a1a1a1;
+		background-color: #f7f7f7;
+	}
+
+	.no-answer {
+		color: #a1a1a1;
+		background-color: #f7f7f7;
+	}
+
+	.error {
+		color: #ff4d4f;
+		background-color: #fff1f0;
+	}
 }

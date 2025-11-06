@@ -1,4 +1,4 @@
-import { SimplifyWorkResult, splitAnswer, $ } from '@ocsjs/core';
+import { SimplifyWorkResult, splitAnswer, $, QuestionTypes } from '@ocsjs/core';
 import { $ui, h } from 'easy-us';
 import { createQuestionTitleExtra } from '../utils';
 
@@ -26,13 +26,31 @@ export class SearchInfosElement extends HTMLElement {
 	/** 当前的题目 */
 	question: string = '';
 
+	type: QuestionTypes;
+
 	connectedCallback() {
 		const question = transformImgLinkOfQuestion(this.question || '无');
 
+		const type_text = {
+			single: '单选题',
+			multiple: '多选题',
+			judgement: '判断题',
+			completion: '填空题'
+		};
+		const type_label = this.type ? Reflect.get(type_text, this.type) : '';
+
 		this.append(
-			h('div', [h('span', { innerHTML: question }), createQuestionTitleExtra(this.question)], (div) => {
-				div.className = 'search-info-title';
-			})
+			h(
+				'div',
+				[
+					h('span', { className: 'search-result-question-type' }, type_label),
+					h('span', { innerHTML: question }),
+					createQuestionTitleExtra(this.question)
+				],
+				(div) => {
+					div.className = 'search-info-title';
+				}
+			)
 		);
 
 		this.append(
