@@ -643,7 +643,7 @@ modal-element.confirm {
 	}
 }
 
-.minimize {
+container-element.minimize {
 	.body,
 	header-element .dropdown,
 	.footer {
@@ -651,7 +651,7 @@ modal-element.confirm {
 	}
 }
 
-.minimize header-element {
+container-element.minimize header-element {
 	padding: 8px;
 	border-radius: 8px;
 	box-shadow: 0px 0px 24px -12px black;
@@ -1015,16 +1015,41 @@ search-infos-element {
 }
 
 message-element {
-	animation: change 1s;
+	animation: show 0.5s;
 }
 
-@keyframes change {
+script-panel-element > div,
+script-panel-link,
+container-element,
+modal-element {
+	animation: fade-in 0.3s;
+}
+
+@keyframes show {
 	0% {
-		transform: translateY(10px);
-		opacity: 0.5;
+		transform: translateY(20px);
+		opacity: 0;
 	}
 	100% {
 		transform: translateY(0);
 		opacity: 1;
+	}
+}
+
+@keyframes fade-in {
+	0% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+@keyframes fade-out {
+	0% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
 	}
 }

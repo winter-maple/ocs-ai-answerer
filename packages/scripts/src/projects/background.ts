@@ -919,15 +919,24 @@ export const BackgroundProject = Project.create({
 			async onactive() {
 				const currentStudyScript = [
 					[CXProject.scripts.studyDispatcher, CXProject.scripts.study],
+					CXProject.scripts.work,
 					ZHSProject.scripts['gxk-study'],
 					ZHSProject.scripts['xnk-study'],
 					ZHSProject.scripts.hike,
 					ZHSProject.scripts['smart-study'],
 					ZHSProject.scripts['wisdom-study'],
 					ZHSProject.scripts['xnk-study'],
+					ZHSProject.scripts['gxk-work'],
+					ZHSProject.scripts['xnk-work'],
+					ZHSProject.scripts['hike-work'],
+					ZHSProject.scripts['smart-work'],
+					ZHSProject.scripts['xnk-work'],
 					[ICourseProject.scripts.dispatcher, ICourseProject.scripts.study],
+					ICourseProject.scripts.work,
 					[ZJYProject.scripts.dispatcher, ZJYProject.scripts.study],
-					IcveMoocProject.scripts.study
+					ZJYProject.scripts.work,
+					IcveMoocProject.scripts.study,
+					IcveMoocProject.scripts.work
 				]
 					.map((m) => {
 						const url = window.location.href;
