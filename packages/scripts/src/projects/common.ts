@@ -1082,10 +1082,12 @@ export const CommonProject = Project.create({
 								}
 							} else {
 								container.replaceChildren(
-									h('div', '暂无任何搜索结果~', (div) => {
-										div.style.marginTop = '12px';
-										div.className = 'result-info no-answer';
-									})
+									h('div', { className: 'alert-info-wrapper' }, [
+										h('div', '暂无任何搜索结果~', (div) => {
+											div.style.marginTop = '12px';
+											div.className = 'result-info no-answer';
+										})
+									])
 								);
 							}
 
