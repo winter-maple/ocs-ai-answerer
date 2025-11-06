@@ -28,9 +28,9 @@ const state = {
 };
 
 /**
- * 掌握度页面
+ * 需要软件辅助的掌握度页面
  */
-const zwd_pages = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'];
+const remote_required_pages = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'];
 
 const gxk_read_notes = [
 	'⚠️ 如果未开始答题，请尝试刷新页面。',
@@ -1075,6 +1075,11 @@ export const ZHSProject = Project.create({
 						const getNextJob = () => {
 							const cards = Array.from(document.querySelectorAll('.resources-item'));
 
+							// 如果没有正在选中的章节，证明第一个就是外链模式，此时默认点击第一个
+							if (cards.some((card) => card.querySelector('.active')) === false) {
+								return cards[0];
+							}
+
 							let target_el;
 							let start = false;
 							for (let index = 0; index < cards.length; index++) {
@@ -1167,23 +1172,33 @@ export const ZHSProject = Project.create({
 							const next = async () => {
 								const nextJob = getNextJob();
 								if (nextJob) {
-									const job_title = nextJob.querySelector('.common-text') as HTMLElement;
-									if (include_jobs.some((job) => nextJob.getElementsByClassName(job).length > 0)) {
-										job_title.click();
+									const nextJobTitle = nextJob.querySelector('.common-text') as HTMLElement;
+
+									/**
+									 * 链接任务点不会自动取消 active 样式，导致无法获取下一个任务点
+									 * 这里手动移除 active 样式，避免影响获取下一个任务点
+									 */
+									document.querySelectorAll('.resources-item .active').forEach((el) => el.classList.remove('active'));
+
+									if (include_jobs.some((job) => nextJob.querySelector('.icon-box')?.classList.contains(job))) {
+										nextJobTitle.click();
 										await doWork();
 									}
 									// 链接任务
 									else {
 										const _open = $gm.unsafeWindow.open;
 										$gm.unsafeWindow.open = () => null;
-										document.querySelector('.basic-info-video-card-container.active')?.classList.remove('active');
-										job_title.click();
+										nextJobTitle.click();
+										// 链接任务点不会自动附加 active 样式，这里手动添加
 										nextJob.querySelector('.basic-info-video-card-container')?.classList.add('active');
+
+										const msg = '链接任务完成，即将自动下一节！';
+										$message.info(msg);
 										setTimeout(async () => {
 											$gm.unsafeWindow.open = _open;
 											// 直接下一个
 											await next();
-										}, 1000);
+										}, 3000);
 									}
 									return;
 								}
@@ -1286,7 +1301,7 @@ export const ZHSProject = Project.create({
 						'可以搭配 “通用-在线搜题” 一起使用。',
 						'⚠️ 如果没开始答题，请尝试刷新页面。',
 						'⚠️ 禁止一次性打开多个作业/考试页面。',
-						...(zwd_pages.some((domain) => location.href.includes(domain))
+						...(remote_required_pages.some((domain) => location.href.includes(domain))
 							? []
 							: ['⚠️ 答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。'])
 					]).outerHTML
@@ -1305,11 +1320,11 @@ export const ZHSProject = Project.create({
 
 						let remotePage: RemotePage | undefined;
 						// 掌握度
-						const is_zwd = zwd_pages.some((domain) => location.href.includes(domain));
+						const remote_required = remote_required_pages.some((domain) => location.href.includes(domain));
 
 						remote_required ? await waitForElement('.exam-item') : await waitForElement('.questionContent');
 
-						if (is_zwd) {
+						if (remote_required) {
 							// 这两个页面不需要软件辅助
 						} else {
 							remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
@@ -1324,7 +1339,7 @@ export const ZHSProject = Project.create({
 
 						commonWork(this, {
 							workerProvider: (opts) => {
-								if (is_zwd) {
+								if (remote_required) {
 									return fusioncourseWork(remotePage, opts);
 								} else {
 									return smartWork(remotePage, opts);
@@ -2531,7 +2546,7 @@ function smartWork(
 		root: '.questionContent',
 		elements: {
 			title: '.questionName .centent-pre',
-			options: '.radio-view li.clearfix, .checkbox-views label.el-checkbox'
+			options: '.radio-view li.clearfix, .checkbox-views label.el-checkbox, .fillAnswer'
 		},
 		thread: thread ?? 1,
 		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
@@ -2561,7 +2576,7 @@ function smartWork(
 					return 'multiple';
 				} else if (type?.includes('判断题')) {
 					return 'judgement';
-				} else if (type?.includes('填空题')) {
+				} else if (type?.includes('填空')) {
 					return 'completion';
 				} else {
 					return undefined;
@@ -2570,7 +2585,7 @@ function smartWork(
 			/** 自定义处理器 */
 			async handler(type, answer, option, ctx) {
 				if (type === 'judgement' || type === 'single' || type === 'multiple') {
-					let opt = option.querySelector<HTMLElement>(
+					const opt = option.querySelector<HTMLElement>(
 						'.el-checkbox__input:not(.is-checked),i.iconfont:not(.checkedIcon)'
 					);
 
@@ -2582,6 +2597,8 @@ function smartWork(
 						}
 						await $.sleep(200);
 					}
+				} else if (type === 'completion') {
+					// TODO
 				}
 			}
 		},
@@ -2711,7 +2728,7 @@ function fusioncourseWork(
 			/** 自定义处理器 */
 			async handler(type, answer, option, ctx) {
 				if (type === 'judgement' || type === 'single' || type === 'multiple') {
-					let opt = option.querySelector<HTMLElement>(
+					const opt = option.querySelector<HTMLElement>(
 						'.el-checkbox__input:not(.is-checked),.el-radio__input:not(.is-checked)'
 					);
 
