@@ -896,6 +896,11 @@ export const CommonProject = Project.create({
 					setResults(results: SimplifyWorkResult[]) {
 						return $store.setTab(TAB_WORK_RESULTS_KEY, results);
 					},
+					async appendResults(results: SimplifyWorkResult[]) {
+						const data = (await $store.getTab(TAB_WORK_RESULTS_KEY)) || [];
+						data.push(...results);
+						return $store.setTab(TAB_WORK_RESULTS_KEY, data);
+					},
 					/**
 					 * 刷新搜索结果状态，清空搜索结果，置顶搜索结果面板
 					 */
@@ -967,7 +972,7 @@ export const CommonProject = Project.create({
 
 									list.style.marginBottom = '12px';
 									list.style.overflow = 'auto';
-									list.style.maxHeight = '200px';
+									list.style.maxHeight = '300px';
 
 									/** 渲染序号 */
 									const nums = results.map((result, index) => {
@@ -1123,7 +1128,21 @@ export const CommonProject = Project.create({
 													btn.onclick = () => {
 														$modal.confirm({ content: tip, footer: undefined });
 													};
-												})
+												}),
+												$ui.tooltip(
+													h('a', '清空结果', (btn) => {
+														btn.title = '仅用于不会自动清空搜索结果的场景，例如超星非整卷预览模式';
+														btn.style.cursor = 'pointer';
+														btn.onclick = () => {
+															this.methods.clearResults();
+															const { panel, header } = CXProject.scripts.work;
+															if (panel && header) {
+																CXProject.scripts.work.onrender?.({ panel, header });
+																CommonProject.scripts.workResults.onrender?.({ panel, header });
+															}
+														};
+													})
+												)
 											],
 											{ separator: '|' }
 										)
@@ -1178,8 +1197,8 @@ export const CommonProject = Project.create({
 					}
 				};
 			},
-			onrender() {
-				// 此处由 commonWork 函数控制
+			onrender({ panel }) {
+				panel.body.replaceChildren(this.methods.createWorkResultsPanel());
 			}
 		}),
 		onlineSearch: new Script({

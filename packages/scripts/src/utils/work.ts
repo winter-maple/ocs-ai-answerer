@@ -12,6 +12,7 @@ export function commonWork(
 	script: Script,
 	options: {
 		start_delay_seconds?: number;
+		enable_control_panel?: boolean;
 		workerProvider: (opts: CommonWorkOptions) => OCSWorker<any> | undefined;
 		beforeRunning?: () => void | Promise<void>;
 		onRestart?: () => void | Promise<void>;
@@ -71,9 +72,12 @@ export function commonWork(
 	};
 	const workResultPanel = () => CommonProject.scripts.workResults.methods.createWorkResultsPanel();
 
-	const sync_scripts = [script, CommonProject.scripts.workResults];
+	const sync_script = [script];
+	if (options.enable_control_panel) {
+		sync_script.push(CommonProject.scripts.workResults);
+	}
 
-	for (const script of sync_scripts) {
+	for (const script of sync_script) {
 		script.on('render', () => {
 			let gotoSettingsBtnContainer: string | HTMLElement = '';
 			if (checkFailed) {
@@ -92,7 +96,9 @@ export function commonWork(
 			script.panel?.body?.replaceChildren(
 				h('div', { style: { marginTop: '12px' } }, [
 					gotoSettingsBtnContainer,
-					globalControlPanel ? globalControlPanel : createWorkControlPanel().container,
+					...(options.enable_control_panel
+						? [globalControlPanel ? globalControlPanel : createWorkControlPanel().container]
+						: []),
 					workResultPanel()
 				])
 			);

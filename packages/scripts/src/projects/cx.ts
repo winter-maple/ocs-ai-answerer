@@ -352,7 +352,8 @@ export const CXProject = Project.create({
 			async oncomplete() {
 				const isExam = /\/exam\/preview/.test(location.href);
 				commonWork(this, {
-					workerProvider: (opts) => workOrExam(isExam ? 'exam' : 'work', { ...opts, preview_mode: true })
+					workerProvider: (opts) => workOrExam(isExam ? 'exam' : 'work', { ...opts, preview_mode: true }),
+					enable_control_panel: true
 				});
 			}
 		}),
@@ -471,11 +472,18 @@ export const CXProject = Project.create({
 							newUrl.pathname = '/mycourse/studentstudy';
 						}
 						const params = newUrl.searchParams;
-						params.set('mooc2', '1');
+						let changed = false;
+						if (params.get('mooc2') !== '1') {
+							params.set('mooc2', '1');
+							changed = true;
+						}
+
 						// 兼容考试切换
-						params.set('newMooc', 'true');
-						params.delete('examsystem');
-						window.location.replace(newUrl);
+						if (params.get('newMooc') !== 'true') {
+							params.set('newMooc', 'true');
+							changed = true;
+						}
+						if (changed) window.location.replace(newUrl);
 					}
 				}
 			}
@@ -490,16 +498,22 @@ export const CXProject = Project.create({
 			hideInPanel: true,
 			oncomplete() {
 				if ($gm.unsafeWindow.document.querySelector('.mark_info')?.textContent?.includes('不允许整卷预览')) {
-					$message.info({
-						content: '由于超星禁止整卷预览，每题相当于一个新页面，因此搜索结果只会显示一个。',
+					$message.warn({
+						content: $ui.notes([
+							'由于当前考试禁止整卷预览，各题为独立新页面，只能一个个答题',
+							'在考完前禁止手动切换题目，否则会导致重复答题！',
+							'完成后或者开考前请手动删除搜索结果！',
+							'想加快速度请更改通用-全局设置-高级设置-搜题间隔，设置为 1-3 秒即可。'
+						]),
 						duration: 0
 					});
 					const isExam = /\/exam\/test/.test(location.href);
 					const workOptions = CommonProject.scripts.settings.methods.getWorkOptions();
-					commonWork(this, {
+					commonWork(CXProject.scripts.work, {
 						// 因为超星是每个题目一个页面，这里加快开始速度，避免等待，默认5秒，这里加快为默认3秒间隔
 						start_delay_seconds: workOptions.period,
-						workerProvider: (opts) => workOrExam(isExam ? 'exam' : 'work', { ...opts, preview_mode: false })
+						enable_control_panel: true,
+						workerProvider: (opts) => workOrExam(isExam ? 'exam' : 'work', { ...opts, preview_mode: false, thread: 1 })
 					});
 					return;
 				}
@@ -830,7 +844,20 @@ function workOrExam(
 		},
 
 		/** 完成答题后 */
-		onResultsUpdate(current, _, res) {
+		async onResultsUpdate(current, _, res) {
+			// 非预览模式，直接追加，想要清楚只能手动清空
+			if (!preview_mode) {
+				if (current.result?.finish) {
+					await CommonProject.scripts.workResults.methods.appendResults(
+						simplifyWorkResult(res, workOrExamQuestionTitleTransform)
+					);
+					CommonProject.scripts.apps.methods.addQuestionCacheFromWorkResult(
+						simplifyWorkResult([current], workOrExamQuestionTitleTransform)
+					);
+				}
+				return;
+			}
+
 			CommonProject.scripts.workResults.methods.setResults(simplifyWorkResult(res, workOrExamQuestionTitleTransform));
 			CommonProject.scripts.workResults.methods.updateWorkStateByResults(res);
 			if (current.result?.finish) {
@@ -1474,6 +1501,7 @@ function searchJob(
 									const msg = `开始答题 : ` + jobName;
 									$message.info({ content: msg });
 									$console.log(msg);
+
 									return JobRunner.chapter(root, opts.workOptions);
 								};
 							}

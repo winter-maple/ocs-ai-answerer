@@ -394,6 +394,7 @@ export const ICourseProject = Project.create({
 							return worker;
 						},
 						onWorkerCreated: onWorkerCreated,
+						enable_control_panel: true,
 						start_delay_seconds: 3
 					});
 				};
