@@ -1307,7 +1307,7 @@ export const ZHSProject = Project.create({
 						// 掌握度
 						const is_zwd = zwd_pages.some((domain) => location.href.includes(domain));
 
-						is_zwd ? await waitForElement('.exam-item') : await waitForElement('#questionContent');
+						remote_required ? await waitForElement('.exam-item') : await waitForElement('.questionContent');
 
 						if (is_zwd) {
 							// 这两个页面不需要软件辅助
