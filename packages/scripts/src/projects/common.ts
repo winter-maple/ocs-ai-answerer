@@ -1174,8 +1174,8 @@ export const CommonProject = Project.create({
 					}
 				};
 			},
-			onrender({ panel }) {
-				panel.body.replaceChildren(this.methods.createWorkResultsPanel());
+			onrender() {
+				// 此处由 commonWork 函数控制
 			}
 		}),
 		onlineSearch: new Script({

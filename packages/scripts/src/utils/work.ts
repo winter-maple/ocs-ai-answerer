@@ -3,6 +3,8 @@ import { $ui, $message, MessageElement, Script, h } from 'easy-us';
 import { CommonProject } from '../projects/common';
 import { CommonWorkOptions, workPreCheckMessage } from '.';
 
+export let globalControlPanel: HTMLElement | null = null;
+
 /**
  * 通用作业考试工具方法
  */
@@ -18,8 +20,8 @@ export function commonWork(
 ) {
 	// 置顶当前脚本
 	CommonProject.scripts.render.methods.pin(script);
-
 	let worker: OCSWorker<any> | undefined;
+
 	/**
 	 * 是否已经按下了开始按钮
 	 */
@@ -35,7 +37,7 @@ export function commonWork(
 	let running = false;
 
 	/** 显示答题控制按钮 */
-	const createControls = () => {
+	const createWorkControlPanel = () => {
 		const { controlBtn, restartBtn, startBtn } = createWorkerControl({
 			workerProvider: () => worker,
 			onStart: async () => {
@@ -63,33 +65,39 @@ export function commonWork(
 			running ? [controlBtn, restartBtn] : [startBtn]
 		);
 
+		globalControlPanel = container;
+
 		return { container, startBtn, restartBtn, controlBtn };
 	};
 	const workResultPanel = () => CommonProject.scripts.workResults.methods.createWorkResultsPanel();
 
-	script.on('render', () => {
-		let gotoSettingsBtnContainer: string | HTMLElement = '';
-		if (checkFailed) {
-			const gotoSettingsBtn = $ui.button('👉 前往设置题库配置', {
-				className: 'base-style-button',
-				style: { flex: '1', padding: '4px' }
-			});
-			gotoSettingsBtn.style.flex = '1';
-			gotoSettingsBtn.style.padding = '4px';
-			gotoSettingsBtn.onclick = () => {
-				CommonProject.scripts.render.methods.pin(CommonProject.scripts.settings);
-			};
-			gotoSettingsBtnContainer = h('div', { style: { display: 'flex' } }, [gotoSettingsBtn]);
-		}
+	const sync_scripts = [script, CommonProject.scripts.workResults];
 
-		script.panel?.body?.replaceChildren(
-			h('div', { style: { marginTop: '12px' } }, [
-				gotoSettingsBtnContainer,
-				createControls().container,
-				workResultPanel()
-			])
-		);
-	});
+	for (const script of sync_scripts) {
+		script.on('render', () => {
+			let gotoSettingsBtnContainer: string | HTMLElement = '';
+			if (checkFailed) {
+				const gotoSettingsBtn = $ui.button('👉 前往设置题库配置', {
+					className: 'base-style-button',
+					style: { flex: '1', padding: '4px' }
+				});
+				gotoSettingsBtn.style.flex = '1';
+				gotoSettingsBtn.style.padding = '4px';
+				gotoSettingsBtn.onclick = () => {
+					CommonProject.scripts.render.methods.pin(CommonProject.scripts.settings);
+				};
+				gotoSettingsBtnContainer = h('div', { style: { display: 'flex' } }, [gotoSettingsBtn]);
+			}
+
+			script.panel?.body?.replaceChildren(
+				h('div', { style: { marginTop: '12px' } }, [
+					gotoSettingsBtnContainer,
+					globalControlPanel ? globalControlPanel : createWorkControlPanel().container,
+					workResultPanel()
+				])
+			);
+		});
+	}
 
 	const workOptions = CommonProject.scripts.settings.methods.getWorkOptions();
 
@@ -115,12 +123,13 @@ export function commonWork(
 			options.onWorkerCreated?.(worker);
 		}
 
-		const { container, controlBtn } = createControls();
+		const { container, controlBtn } = createWorkControlPanel();
 		// 更新状态
 		script.panel?.body?.replaceChildren(container, workResultPanel());
 
 		worker?.once('done', () => {
 			running = false;
+			globalControlPanel = null;
 			controlBtn.disabled = true;
 		});
 	};
@@ -207,6 +216,7 @@ export function simplifyWorkResult(
 			requested: wr.requested,
 			resolved: wr.resolved,
 			error: wr.error,
+			type: wr.ctx?.type,
 			question: titleTransform?.(wr.ctx?.elements.title || [], i) || wr.ctx?.elements.title?.join(',') || '',
 			finish: wr.result?.finish,
 			searchInfos:
