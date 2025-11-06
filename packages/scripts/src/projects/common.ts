@@ -12,7 +12,7 @@ import { $message, h, $gm, $store, Project, Script, $modal, StoreListenerType, $
 import type { AnswerMatchMode, AnswererWrapper, SearchInformation } from '@ocsjs/core';
 import { CXProject, ICourseProject, IcveMoocProject, ZHSProject, ZJYProject } from '../index';
 import { markdown } from '../utils/markdown';
-import { createQuestionTitleExtra, enableCopy } from '../utils';
+import { enableCopy } from '../utils';
 import { SearchInfosElement } from '../elements/search.infos';
 import { RenderScript } from '../render';
 
@@ -49,10 +49,16 @@ const state = {
 				document.querySelectorAll<HTMLElement>(`.sheet_nums [id*="sheetSeq"]`).item(index)?.click();
 			},
 			zjy: (index: number) => {
-				document.querySelectorAll<HTMLElement>('.subjectDet').item(index)?.scrollIntoView({ behavior: 'smooth' });
+				document
+					.querySelectorAll<HTMLElement>('.subjectDet')
+					.item(index)
+					?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			},
 			icourse: (index: number) => {
-				document.querySelectorAll<HTMLElement>('.u-questionItem').item(index)?.scrollIntoView({ behavior: 'smooth' });
+				document
+					.querySelectorAll<HTMLElement>('.u-questionItem,[class*=questionBody]')
+					.item(index)
+					?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			}
 		}
 	},
@@ -1137,9 +1143,9 @@ export const CommonProject = Project.create({
 									info = h('div', { className: 'result-info unresolved' }, '等待搜索中... 🔍');
 								} else if (result.error) {
 									info = h('div', { className: 'result-info error' }, '❌ ' + result.error);
-									} else if (result.searchInfos.length === 0) {
+								} else if (result.searchInfos.length === 0) {
 									info = h('div', { className: 'result-info no-answer' }, '❌ 题库没搜索到答案');
-									} else {
+								} else {
 									info = result.finish
 										? null
 										: result.resolved === false
@@ -1147,14 +1153,14 @@ export const CommonProject = Project.create({
 										: h('div', { className: 'result-info error' }, '❌ 此题未完成, 可能是没有匹配的选项。');
 								}
 
-										return h('div', [
+								return h('div', [
 									h('div', { className: 'alert-info-wrapper' }, [info ?? h('div')]),
-											h(SearchInfosElement, {
-												infos: result.searchInfos,
+									h(SearchInfosElement, {
+										infos: result.searchInfos,
 										question: result.question,
 										type: result.type
-											})
-										]);
+									})
+								]);
 							} else {
 								return h('div', 'undefined');
 							}

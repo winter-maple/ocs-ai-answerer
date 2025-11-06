@@ -348,7 +348,8 @@ export const ICourseProject = Project.create({
 			namespace: 'icourse.work-v2',
 			matches: [
 				['MOOC作业页面', 'icourse163.org/learn'],
-				['SPOC作业页面', 'icourse163.org/spoc/learn']
+				['SPOC作业页面', 'icourse163.org/spoc/learn'],
+				['考试页面', 'icourse163.org/mooc/main/newExam']
 			],
 			configs: {
 				notes: workNotes,
@@ -358,15 +359,10 @@ export const ICourseProject = Project.create({
 			},
 			methods() {
 				const start = async (
-					type: 'chapter-test' | 'work-or-exam',
+					type: 'chapter-test' | 'work' | 'exam',
 					canRun: () => boolean,
 					onWorkerCreated?: (worker: OCSWorker) => void
 				) => {
-					CommonProject.scripts.render.methods.pin(this);
-
-					// 移动窗口到边缘
-					$render.moveToEdge();
-
 					// 检查是否为软件环境
 					const remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
 					// 检查是否为软件环境
@@ -376,6 +372,9 @@ export const ICourseProject = Project.create({
 
 					// 等待加载题目
 					await waitForQuestion();
+
+					CommonProject.scripts.render.methods.pin(this);
+					CommonProject.scripts.render.methods.normal();
 
 					$msg_and_log('info', '开始答题');
 					CommonProject.scripts.render.methods.pin(this);
@@ -404,10 +403,14 @@ export const ICourseProject = Project.create({
 							$message.success('当前作业已完成，自动答题关闭。');
 							return;
 						}
-						return start('work-or-exam', canRun);
+						return start('work', canRun);
 					},
 					start: start
 				};
+			},
+			// 考试是新开一个界面所以会直接触发
+			oncomplete() {
+				this.methods.start('exam', () => true);
 			}
 		})
 	}
@@ -416,7 +419,7 @@ export const ICourseProject = Project.create({
 function waitForQuestion() {
 	return new Promise<void>((resolve, reject) => {
 		const interval = setInterval(() => {
-			if (document.querySelector('.u-questionItem')) {
+			if (document.querySelector('.u-questionItem,[class*=questionBody]')) {
 				clearInterval(interval);
 				resolve();
 			}
@@ -426,7 +429,7 @@ function waitForQuestion() {
 
 function workAndExam(
 	remotePage: RemotePage,
-	type: 'chapter-test' | 'work-or-exam',
+	type: 'chapter-test' | 'work' | 'exam',
 	{
 		answererWrappers,
 		period,
@@ -453,13 +456,14 @@ function workAndExam(
 			redundanceWordsText.split('\n')
 		);
 	};
+	const work_type = type;
 
 	/** 新建答题器 */
 	const worker = new OCSWorker({
-		root: '.u-questionItem',
+		root: type === 'exam' ? '[class*=questionBody]' : '.u-questionItem',
 		elements: {
-			title: '.j-title .j-richTxt',
-			options: '.choices li,.inputArea'
+			title: type === 'exam' ? '[class*=questionInfo]' : '.j-title .j-richTxt',
+			options: type === 'exam' ? '[class*=index-module__option]' : '.choices li,.inputArea'
 		},
 		thread: thread ?? 1,
 		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
@@ -484,10 +488,17 @@ function workAndExam(
 			/** 自定义处理器 */
 			async handler(type, answer, option) {
 				if (type === 'judgement' || type === 'single' || type === 'multiple') {
+					if (work_type === 'exam') {
+						const input = option.querySelector('input');
+						if (input && !input?.checked) {
+							await $.sleep(200);
+							return input.click();
+						}
+					}
 					const text = option.querySelector('.f-richEditorText');
-
 					const input = option.querySelector('input');
 					if (input && !input?.checked && text) {
+						await $.sleep(200);
 						await remotePage.click(text);
 					}
 				} else if (type === 'completion' && answer.trim()) {
@@ -495,7 +506,7 @@ function workAndExam(
 
 					if (text) {
 						text.value = answer.trim();
-						await remotePage.click(text);
+						await remotePage.fill('textarea', answer.trim());
 					}
 				}
 			}
