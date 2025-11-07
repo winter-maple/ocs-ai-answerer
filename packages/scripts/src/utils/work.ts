@@ -96,9 +96,7 @@ export function commonWork(
 			script.panel?.body?.replaceChildren(
 				h('div', { style: { marginTop: '12px' } }, [
 					gotoSettingsBtnContainer,
-					...(options.enable_control_panel
-						? [globalControlPanel ? globalControlPanel : createWorkControlPanel().container]
-						: []),
+					...(options.enable_control_panel ? [globalControlPanel || createWorkControlPanel().container] : []),
 					workResultPanel()
 				])
 			);

@@ -31,7 +31,7 @@ async function buildPackages() {
 	await execOut('vite build', { cwd: '../packages/scripts' });
 }
 
-async function createUserJs(cb) {
+async function createUserJs() {
 	/** 模拟浏览器环境 */
 	require('browser-env')();
 
@@ -120,8 +120,8 @@ async function createUserJs(cb) {
 	devOpts.parseRequire = false;
 	devOpts.parseResource = false;
 	devOpts.metadata.name = devOpts.metadata.name + '(dev)';
-	devOpts.metadata.require = ['file://' + path.join(distResolvedPath, 'index.js')];
-	devOpts.metadata.resource = [`STYLE file://${path.join(__dirname, '../packages/scripts/assets/css/style.css')}`];
+	devOpts.metadata.require = ['file:///' + path.join(distResolvedPath, 'index.js')];
+	devOpts.metadata.resource = [`STYLE file:///${path.join(__dirname, '../packages/scripts/assets/css/style.css')}`];
 	devOpts.entry = path.join(__dirname, '../packages/scripts/entry.dev.js');
 	devOpts.dist = path.join(distResolvedPath, 'ocs.dev.user.js');
 	/** 导出样式文件 */
