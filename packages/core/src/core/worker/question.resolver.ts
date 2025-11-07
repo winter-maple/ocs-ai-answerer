@@ -2,6 +2,7 @@ import { QuestionResolver, WorkContext } from './interface';
 import { resolvePlainAnswer, splitAnswer } from './utils';
 import { answerSimilar, removeRedundant, clearString, answerExactMatch } from '../utils/string';
 import { StringUtils } from '../../utils/string';
+import { Rating } from 'string-similarity';
 
 /** 默认答案题目处理器 */
 export function defaultQuestionResolve<E>(
@@ -18,10 +19,10 @@ export function defaultQuestionResolve<E>(
 				.map((res) => res.results.map((res) => splitAnswer(res.answer, ctx.answerSeparators)).flat())
 				.flat();
 			const optionStrings = options.map((o) => removeRedundant(o.innerText));
-
+			let ratings: Rating[] = [];
 			if (ctx.answerMatchMode === 'similar') {
 				/** 配对选项的相似度 */
-				const ratings = answerSimilar(allAnswer, optionStrings);
+				ratings = answerSimilar(allAnswer, optionStrings);
 				/**  找出最相似的选项 */
 				let index = -1;
 				let max = 0;
@@ -68,7 +69,7 @@ export function defaultQuestionResolve<E>(
 				}
 			}
 
-			return { finish: false, allAnswer, options: optionStrings };
+			return { finish: false, allAnswer, ratings: ratings.map((r) => r.rating), options: optionStrings };
 		},
 		/**
 		 * 多选题处理器

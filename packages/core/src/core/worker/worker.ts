@@ -134,7 +134,16 @@ export class OCSWorker<E extends RawElements = RawElements> extends CommonEventE
 			ctx.searchInfos = [];
 
 			if (options?.enable_debug) {
-				console.debug('开始搜题: ', result.ctx);
+				console.groupEnd();
+				console.group(
+					'开始搜题: ',
+					ctx.elements.title
+						?.map((t) => t?.innerText)
+						.filter(Boolean)
+						.join(', ')
+						.slice(0, 20)
+				);
+				console.log('ctx', result.ctx);
 			}
 
 			try {
@@ -156,31 +165,31 @@ export class OCSWorker<E extends RawElements = RawElements> extends CommonEventE
 			result.error = error;
 
 			if (options?.enable_debug) {
-				console.debug('搜题完成: ', index, result.ctx);
+				console.log('搜题结果: ', ctx.searchInfos);
 			}
 			/** 回调 */
 			await this.opts.onResultsUpdate?.(results[index], index, results);
 		};
 
+		const waitForRequested = async (result: WorkResult<E>) => {
+			return new Promise<void>((resolve, reject) => {
+				const interval = setInterval(() => {
+					if (result?.requested === true) {
+						clearInterval(interval);
+						clearTimeout(timeout);
+						resolve();
+					}
+				}, 200);
+
+				const timeout = setTimeout(() => {
+					clearInterval(interval);
+					reject(new Error('答题超时！'));
+				}, 60 * 1000);
+			});
+		};
+
 		/** 答题线程， */
 		const resolverThread = async () => {
-			const waitForRequested = async (result: WorkResult<E>) => {
-				return new Promise<void>((resolve, reject) => {
-					const interval = setInterval(() => {
-						if (result?.requested === true) {
-							clearInterval(interval);
-							clearTimeout(timeout);
-							resolve();
-						}
-					}, 200);
-
-					const timeout = setTimeout(() => {
-						clearInterval(interval);
-						reject(new Error('答题超时！'));
-					}, 60 * 1000);
-				});
-			};
-
 			for (let index = 0; index < results.length; index++) {
 				const result = results[index];
 
@@ -236,7 +245,14 @@ export class OCSWorker<E extends RawElements = RawElements> extends CommonEventE
 				result.resolved = true;
 
 				if (options?.enable_debug) {
-					console.debug('答题完成: ', index, result);
+					console.log(
+						'答题完成: ',
+						result.ctx?.elements.title
+							?.map((t) => t?.innerText)
+							.join(', ')
+							.slice(0, 20),
+						result
+					);
 				}
 
 				/** 回调 */

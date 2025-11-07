@@ -9,7 +9,7 @@ export function clearString(str: string, ...exclude: string[]) {
 	return str
 		.trim()
 		.toLocaleLowerCase()
-		.replace(RegExp(`[^\\u4e00-\\u9fa5A-Za-z0-9${exclude.join('')}]*`, 'g'), '');
+		.replace(RegExp(`[^\\u2E80-\\u9FFFA-Za-z0-9${exclude.join('')}]*`, 'g'), '');
 }
 
 /**
@@ -33,8 +33,8 @@ export function clearString(str: string, ...exclude: string[]) {
  *
  */
 export function answerSimilar(answers: string[], options: string[]): Rating[] {
-	const _answers = answers.map(removeRedundant);
-	const _options = options.map(removeRedundant);
+	const _answers = answers.map(removeRedundant).map((a) => clearString(a));
+	const _options = options.map(removeRedundant).map((o) => clearString(o));
 
 	const similar =
 		_answers.length !== 0
@@ -72,5 +72,5 @@ export function answerExactMatch(answers: string[], options: string[]): string[]
  * 删除题目选项中开头的冗余字符串
  */
 export function removeRedundant(str: string) {
-	return str?.trim().replace(/[A-Z]{1}[^A-Za-z0-9\u4e00-\u9fa5]+([A-Za-z0-9\u4e00-\u9fa5]+)/, '$1') || '';
+	return str?.trim().replace(/[A-Z]{1}[^A-Za-z0-9\u2E80-\u9FFF]+([A-Za-z0-9\u2E80-\u9FFF]+)/, '$1') || '';
 }
