@@ -22,7 +22,9 @@ export default defineConfig({
 			'@ocsjs/core': '../core/src/index.ts'
 		}
 	},
-
+	esbuild: {
+		charset: 'utf8'
+	},
 	build: {
 		/** 取消css代码分离 */
 		cssCodeSplit: false,
