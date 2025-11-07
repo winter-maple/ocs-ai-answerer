@@ -464,7 +464,7 @@ function workAndExam(
 		root: type === 'exam' ? '[class*=questionBody]' : '.u-questionItem',
 		elements: {
 			title: type === 'exam' ? '[class*=questionInfo]' : '.j-title .j-richTxt',
-			options: type === 'exam' ? '[class*=index-module__option]' : '.choices li,.inputArea'
+			options: type === 'exam' ? '[class*=index-module__optionBody]' : '.choices li,.inputArea'
 		},
 		thread: thread ?? 1,
 		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
@@ -536,7 +536,7 @@ function workAndExam(
 	});
 
 	worker
-		.doWork()
+		.doWork({ enable_debug: true })
 		.then(async (results) => {
 			if (worker.isClose) {
 				return;
