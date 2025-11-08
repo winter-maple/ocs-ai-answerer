@@ -150,7 +150,7 @@ hr {
 .base-style-button-secondary:disabled:active {
   box-shadow: none;
 }
-container-element.close {
+container-element.hidden {
   display: none;
 }
 container-element.minimize {
