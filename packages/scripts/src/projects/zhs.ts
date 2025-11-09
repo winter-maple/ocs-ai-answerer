@@ -96,7 +96,13 @@ class StudyVideoH5 implements ZHSProcessor {
 		if (controlsBar && sl) {
 			controlsBar.style.display = 'block';
 			sl.style.display = 'block';
-			const selector = `.speedList [rate="${parseInt(String(rate)) === 1 ? '1.0' : rate}"]`;
+			/**
+			 * 兼容 1.0 和 1 的两个属性值匹配
+			 */
+			const rate_parsed = parseFloat(String(rate));
+			const selector = `.speedList [rate="${rate_parsed === 1 ? '1.0' : rate}"],.speedList [rate="${
+				rate_parsed === 1 ? '1' : rate
+			}"]`;
 			if (this.remotePage) {
 				await this.remotePage.click(selector);
 			} else {
