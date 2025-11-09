@@ -420,6 +420,22 @@ export const ICourseProject = Project.create({
 			oncomplete() {
 				this.methods.start('exam', () => true);
 			}
+		}),
+		passportRedirect: new Script({
+			name: '登录重定向修复',
+			matches: [['登录重定向', 'passport/logingate/changeCookie.htm']],
+			configs: {
+				notes: {
+					defaultValue: $ui.notes(['检测到页面重定向到空白页面', '程序将会自动修复']).outerHTML
+				}
+			},
+			oncomplete(...args) {
+				CommonProject.scripts.render.methods.pin(this);
+				$message.info('检测到中国大学MOOC空白页面，即将重定向修复...');
+				setTimeout(() => {
+					location.href = 'https://www.icourse163.org/';
+				}, 3000);
+			}
 		})
 	}
 });
