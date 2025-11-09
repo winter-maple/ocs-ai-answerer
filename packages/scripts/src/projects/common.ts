@@ -45,6 +45,9 @@ const state = {
 			'zhs-fusion': (index: number) => {
 				document.querySelectorAll<HTMLElement>('.right-box .list .item').item(index)?.click();
 			},
+			'zhs-hike': (index: number) => {
+				document.querySelectorAll<HTMLElement>('.q_main_right .card_ul .card_li').item(index)?.click();
+			},
 			icve: (index: number) => {
 				document.querySelectorAll<HTMLElement>(`.sheet_nums [id*="sheetSeq"]`).item(index)?.click();
 			},
