@@ -134,7 +134,12 @@ export const ICourseProject = Project.create({
 			},
 			methods() {
 				return {
-					main: async (canRun: () => boolean) => {
+					main: async (
+						/**
+						 * 是否可以继续运行（切换任务点后当前任务返回False）
+						 */
+						canRun: () => boolean
+					) => {
 						CommonProject.scripts.render.methods.pin(this);
 
 						const remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
@@ -150,9 +155,11 @@ export const ICourseProject = Project.create({
 						 * 处理视频弹窗题目
 						 */
 						const handleVideoTest = async () => {
+							if (!canRun()) return;
 							setTimeout(async () => {
 								const question = document.querySelector('.u-questionItem');
-								if (question) {
+								const media = document.querySelector('video,audio');
+								if (question && media) {
 									$msg_and_log('info', '检测到视频弹窗测验，开始答题');
 									await new Promise<void>((resolve) => {
 										ICourseProject.scripts.work.methods.start('chapter-test', canRun, (worker) => {
