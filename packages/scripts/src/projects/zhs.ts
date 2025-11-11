@@ -2623,7 +2623,17 @@ function smartWork(
 						await $.sleep(200);
 					}
 				} else if (type === 'completion') {
-					// TODO
+					const opt = option.querySelector<HTMLInputElement>('input');
+					if (opt && answer.trim()) {
+						if (remotePage) {
+							await remotePage.click(opt);
+							opt.value = '';
+							await remotePage['keyboard.type'](answer, { delay: Math.floor(Math.random() * 100) });
+						} else {
+							opt.value = answer;
+						}
+						await $.sleep(200);
+					}
 				}
 			}
 		},

@@ -98,6 +98,8 @@ export interface RemotePage {
 		url: string;
 	}>;
 	waitForSelector(...args: Parameters<Page['waitForSelector']>): Promise<void>;
+	['keyboard.type']: Page['keyboard']['type'];
+	['keyboard.press']: Page['keyboard']['press'];
 }
 
 const ListOfActions = [
@@ -117,7 +119,9 @@ const ListOfActions = [
 	'reload',
 	'waitForRequest',
 	'waitForResponse',
-	'waitForSelector'
+	'waitForSelector',
+	'keyboard.type',
+	'keyboard.press'
 ];
 
 export class RemotePlaywright {
