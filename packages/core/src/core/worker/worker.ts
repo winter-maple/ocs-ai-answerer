@@ -3,6 +3,7 @@ import { domSearchAll } from '../utils/dom';
 import { RawElements, ResolverResult, WorkContext, WorkOptions, WorkResult, WorkUploadType } from './interface';
 import { defaultQuestionResolve } from './question.resolver';
 import { defaultWorkTypeResolver } from './utils';
+import { AnswerWrapperHandlerConfig } from '../answer-wrapper';
 
 type WorkerEvent = {
 	/** 答题开始 */
@@ -184,7 +185,7 @@ export class OCSWorker<E extends RawElements = RawElements> extends CommonEventE
 				const timeout = setTimeout(() => {
 					clearInterval(interval);
 					reject(new Error('答题超时！'));
-				}, 60 * 1000);
+				}, (AnswerWrapperHandlerConfig.timeout_seconds + 10) * 1000);
 			});
 		};
 
@@ -195,20 +196,24 @@ export class OCSWorker<E extends RawElements = RawElements> extends CommonEventE
 
 				let error: string | undefined;
 				let res: ResolverResult | undefined;
+				/** 强行关闭 */
+				if (this.isClose === true) {
+					this.isRunning = false;
+					return;
+				}
 
 				try {
-					/** 强行关闭 */
-					if (this.isClose === true) {
-						this.isRunning = false;
-						return;
-					}
 					/** 检查是否暂停中 */
 					if (this.isStop) {
 						await waitForContinuate(() => this.isStop);
 					}
 					/** 等待搜题完毕 */
 					await waitForRequested(result);
+				} catch (err) {
+					// 超时错误
+				}
 
+				try {
 					if (result.ctx && result.ctx.searchInfos.length !== 0) {
 						/** 开始处理 */
 						if (typeof this.opts.work === 'object') {
