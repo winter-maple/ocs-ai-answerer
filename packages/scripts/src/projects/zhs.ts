@@ -631,6 +631,7 @@ export const ZHSProject = Project.create({
 				playbackRate: {
 					label: '视频倍速',
 					tag: 'select',
+					attrs: { title: '目前智慧树倍速最高只能1.5x，超出有封号风险' },
 					defaultValue: 1,
 					options: [
 						['1', '1 x'],
@@ -1043,6 +1044,7 @@ export const ZHSProject = Project.create({
 					label: '视频倍速',
 					tag: 'select',
 					defaultValue: 1,
+					attrs: { title: '目前智慧树倍速最高只能1.5x，超出有封号风险' },
 					options: [
 						['1', '1 x'],
 						['1.25', '1.25 x'],
@@ -1507,6 +1509,7 @@ export const ZHSProject = Project.create({
 					label: '视频倍速',
 					tag: 'select',
 					defaultValue: 1,
+					attrs: { title: '目前智慧树倍速最高只能1.5x，超出有封号风险' },
 					options: [
 						['1', '1 x'],
 						['1.25', '1.25 x'],
@@ -1817,6 +1820,7 @@ export const ZHSProject = Project.create({
 					label: '视频倍速',
 					tag: 'select',
 					defaultValue: 1,
+					attrs: { title: '目前智慧树倍速最高只能1.5x，超出有封号风险' },
 					options: [
 						['1', '1 x'],
 						['1.25', '1.25 x'],
