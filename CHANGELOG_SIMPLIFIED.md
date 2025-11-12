@@ -1,3 +1,12 @@
+## 4.1.76 (2025-11-12)
+
+
+### 🔧 修复内容
+
+* 修复职教云资源库PPT总是会返回第一页才结束的BUG <a href="https://github.com/ocsjs/ocsjs/commit/5aab29b9f67f743cef71ab2e99f3eec31d87c47a">></a>
+
+
+
 ## 4.11.75 (2025-11-12)
 
 
