@@ -361,7 +361,7 @@ async function watchFile(pptReadPeriod: number) {
 		if (!current || !total) {
 			break;
 		}
-		if (current >= total) {
+		if (current >= total - 1) {
 			break;
 		}
 		await $.sleep(pptReadPeriod * 1000);
