@@ -151,7 +151,7 @@ export const CXProject = Project.create({
 				}
 			},
 			oncomplete() {
-				if (['chaoxing.com/mycourse', 'chaoxing.com/mooc2-ans/mycourse'].some((path) => location.href.includes(path))) {
+				if (['mycourse/studentstudy'].some((path) => location.href.includes(path))) {
 					$message.success('已进入学习页面，请等待自动运行...');
 					return;
 				}
