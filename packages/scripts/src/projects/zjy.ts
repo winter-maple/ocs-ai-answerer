@@ -272,11 +272,11 @@ export const ZJYProject = Project.create({
 							$console.error(msg);
 						}
 						if (started_url === window.location.href) {
-							msg = courseInfo.name + ' 任务点结束，三秒后下一章';
+							msg = courseInfo.name + ' 任务点结束，五秒后下一章';
 							$message.warn('如果职教云一直卡在显示：“资源类型无法学习，请核对数据！” 请手动切换下一章。');
 							$message.info(msg);
 							$console.info(msg);
-							await $.sleep(3000);
+							await $.sleep(5000);
 							await next(type);
 						}
 					}
