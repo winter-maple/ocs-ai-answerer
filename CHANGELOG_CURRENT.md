@@ -1,18 +1,10 @@
-## [4.11.78](https://github.com/ocsjs/ocsjs/compare/4.11.77...4.11.78) (2025-11-13)
+## [4.11.81](https://github.com/ocsjs/ocsjs/compare/4.11.78...4.11.81) (2025-11-14)
 
 
 ### Bug Fixes
 
-* **script:** 修改职教云资源库视频PPT跳转间隔为5秒 ([32504fa](https://github.com/ocsjs/ocsjs/commit/32504fa2553925fae3439a769650aaf9b6734095))
-
-
-
-## [4.1.76](https://github.com/ocsjs/ocsjs/compare/4.11.75...4.1.76) (2025-11-12)
-
-
-### Bug Fixes
-
-* **script:** 修复职教云资源库PPT总是会返回第一页才结束的BUG ([5aab29b](https://github.com/ocsjs/ocsjs/commit/5aab29b9f67f743cef71ab2e99f3eec31d87c47a))
+* **script:** 修复职教云资源库附件视频任务无法完成的BUG ([e8635e5](https://github.com/ocsjs/ocsjs/commit/e8635e5e090243ba04aee82887c9f95190e32bcc))
+* **script:** 修复职教云资源库总是无法学满进度的BUG ([b06dc44](https://github.com/ocsjs/ocsjs/commit/b06dc44b5be6847dbdc238fc69fb9a732f1e6178))
 
 
 

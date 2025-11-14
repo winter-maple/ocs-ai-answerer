@@ -1,3 +1,13 @@
+## 4.11.81 (2025-11-14)
+
+
+### 🔧 修复内容
+
+* 修复职教云资源库附件视频任务无法完成的BUG <a href="https://github.com/ocsjs/ocsjs/commit/e8635e5e090243ba04aee82887c9f95190e32bcc">></a>
+* 修复职教云资源库总是无法学满进度的BUG <a href="https://github.com/ocsjs/ocsjs/commit/b06dc44b5be6847dbdc238fc69fb9a732f1e6178">></a>
+
+
+
 ## 4.11.78 (2025-11-13)
 
 
