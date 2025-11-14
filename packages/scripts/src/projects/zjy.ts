@@ -343,7 +343,7 @@ async function watchMedia() {
 }
 
 async function watchFile(pptReadPeriod: number) {
-	const vue = getVueBindElement();
+	const vue = getPPTVueBindElement();
 	if (!vue) {
 		return;
 	}
@@ -388,6 +388,10 @@ function isZyk() {
 }
 
 function getVueBindElement() {
+	return $el('.guide')?.__vue__ || $el('.teach')?.__vue__;
+}
+
+function getPPTVueBindElement() {
 	/**
 	 * 2025/11月新PPT，使用 FilePreview 获取
 	 */
@@ -428,7 +432,9 @@ async function next(type: 'classroomNow' | 'normal') {
 
 		await $.sleep(3000);
 		const url = new URL(window.location.href);
-		url.searchParams.set('courseDesignId', nextObject.courseDesignId);
+		if (nextObject.courseDesignId) {
+			url.searchParams.set('courseDesignId', nextObject.courseDesignId);
+		}
 		url.searchParams.set(field, nextObject.id);
 		window.location.replace(url.href);
 	} else {
