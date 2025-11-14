@@ -238,7 +238,12 @@ export const ZJYProject = Project.create({
 						}
 
 						const courseInfo = ZJYProject.scripts.study.cfg.courseList.find((i) => i.id === id);
-
+						/**
+						 * courseType 在类型为文件夹+附件形式（附件为视频）时，显示混乱类型比如：courseType: 知识点讲解
+						 * 此时从页面获取的 curType 反而是正确的 video 类型
+						 */
+						const vue = getVueBindElement();
+						const courseType = vue.curType === 'video' ? 'video' : courseInfo?.fileType || '';
 						if (!courseInfo) {
 							const err = '获取课程信息失败，请手动刷新页面';
 							$message.error({ content: err, duration: 0 });
@@ -247,12 +252,12 @@ export const ZJYProject = Project.create({
 						}
 
 						const started_url = window.location.href;
-						let msg = '开始学习：' + courseInfo.fileType + '-' + courseInfo.name;
+						let msg = '开始学习：' + courseType + '-' + courseInfo.name;
 						$message.success(msg);
 						$console.info(msg);
-						if (['ppt', 'doc', 'pptx', 'docx', 'pdf', 'txt', 'ppt文档'].some((i) => courseInfo.fileType === i)) {
+						if (['ppt', 'doc', 'pptx', 'docx', 'pdf', 'txt', 'ppt文档'].some((i) => courseType === i)) {
 							await watchFile(this.cfg.pptReadPeriod);
-						} else if (['video', 'audio', 'mp4', 'mp3', 'flv', '视频'].some((i) => courseInfo.fileType === i)) {
+						} else if (['video', 'audio', 'mp4', 'mp3', 'flv', '视频'].some((i) => courseType === i)) {
 							const text = $el('.guide')?.textContent || '';
 							msg = `任务点 ${courseInfo.name}，不支持播放。`;
 							if (text.includes('很抱歉，您的浏览器不支持播放此类文件') || text.includes('此视频暂无法播放')) {
@@ -262,12 +267,12 @@ export const ZJYProject = Project.create({
 							} else {
 								await watchMedia();
 							}
-						} else if (['png', 'jpg', '图片'].some((i) => courseInfo.fileType === i)) {
+						} else if (['png', 'jpg', '图片'].some((i) => courseType === i)) {
 							msg = `已查看图片任务点 ${courseInfo.name}，即将跳过。`;
 							$message.info(msg);
 							$console.info(msg);
 						} else {
-							msg = `未知的任务点 ${courseInfo.name}，类型 ${courseInfo.fileType}，请跟作者进行反馈。`;
+							msg = `未知的任务点 ${courseInfo.name}，类型 ${courseType}，请跟作者进行反馈。`;
 							$message.error(msg);
 							$console.error(msg);
 						}
