@@ -44,9 +44,9 @@ jobs:
 
       - name: Build ChangeLogs
         run: |
-          npm run changelog &&
-          npm run changelog:simplify &&
-          npm run changelog:current &&
+          npm run changelog
+          npm run changelog:simplify
+          npm run changelog:current
 
       - name: Fetch Change logs
         if: runner.os == 'Linux'
