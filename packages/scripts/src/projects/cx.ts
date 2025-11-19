@@ -25,33 +25,6 @@ import { $console } from './background';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { waitForMedia } from '../utils/study';
 
-/**
- * 于 4.9.20 后更新，出现顶层套壳页面跨域 :
- * top : zjelib.cn <body>
- * iframe : mooc1.xxx.zjelib.cn/.../mycourse/studentstudy/...  <iframe src=....>
- * 导致top指向zjelib跨域无法访问，所以这里尝试寻找真正的top窗口对象，只有域名中包含 /mycourse/studentstudy 才是可操作的 top
- */
-let top = window.top;
-try {
-	let _self = $gm.unsafeWindow;
-	let _try_count = 10;
-	while (_self.parent !== undefined && _try_count > 0) {
-		if (_self.location.href.includes('/mycourse/studentstudy')) {
-			top = _self;
-			console.log('[ocsjs] top change to :' + top.location.href);
-			break;
-		} else {
-			_try_count--;
-			// @ts-ignore
-			_self = _self.parent;
-		}
-	}
-} catch (e) {
-	console.warn('[ocsjs] fail of find top');
-	console.warn(e);
-	top = window.top;
-}
-
 try {
 	/**
 	 *
@@ -135,6 +108,42 @@ export const CXProject = Project.create({
 		'sslibrary.com'
 	],
 	scripts: {
+		/**
+		 * 创建超星独立脚本防止污染其他脚本环境
+		 */
+		env: new Script({
+			name: '环境准备脚本',
+			matches: [['所有页面', /.*/]],
+			hideInPanel: true,
+			onstart() {
+				/**
+				 * 于 4.9.20 后更新，出现顶层套壳页面跨域 :
+				 * top : zjelib.cn <body>
+				 * iframe : mooc1.xxx.zjelib.cn/.../mycourse/studentstudy/...  <iframe src=....>
+				 * 导致top指向zjelib跨域无法访问，所以这里尝试寻找真正的top窗口对象，只有域名中包含 /mycourse/studentstudy 才是可操作的 top
+				 */
+				let top = window.top;
+				try {
+					let _self = $gm.unsafeWindow;
+					let _try_count = 10;
+					while (_self.parent !== undefined && _try_count > 0) {
+						if (_self.location.href.includes('/mycourse/studentstudy')) {
+							top = _self;
+							console.log('[ocsjs] top change to :' + top.location.href);
+							break;
+						} else {
+							_try_count--;
+							// @ts-ignore
+							_self = _self.parent;
+						}
+					}
+				} catch (e) {
+					console.warn('[ocsjs] fail of find top');
+					console.warn(e);
+					top = window.top;
+				}
+			}
+		}),
 		guide: new Script({
 			name: '💡 使用提示',
 			matches: [
