@@ -1,5 +1,5 @@
-import { $, OCSWorker, RemotePage, defaultAnswerWrapperHandler } from '@ocsjs/core';
-import { $message, Project, Script, $ui, $store } from 'easy-us';
+import { $, OCSWorker, RemotePage, WorkerEvents, defaultAnswerWrapperHandler } from '@ocsjs/core';
+import { $message, Project, Script, $ui, $store, CommonEventEmitter } from 'easy-us';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { CommonProject } from './common';
 import { commonWork, optimizationElementWithImage, removeRedundantWords, simplifyWorkResult } from '../utils/work';
@@ -368,7 +368,7 @@ export const ICourseProject = Project.create({
 				const start = async (
 					type: 'chapter-test' | 'work' | 'exam',
 					canRun: () => boolean,
-					onWorkerCreated?: (worker: OCSWorker) => void
+					onWorkerCreated?: (worker: CommonEventEmitter<WorkerEvents>) => void
 				) => {
 					// 检查是否为软件环境
 					const remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
@@ -418,7 +418,13 @@ export const ICourseProject = Project.create({
 			},
 			// 考试是新开一个界面所以会直接触发
 			oncomplete() {
-				this.methods.start('exam', () => true);
+				if (
+					location.href.includes('/learn/examObject') &&
+					// 考试成绩解析页面
+					!location.href.includes('learn/examObjectScore')
+				) {
+					this.methods.start('exam', () => true);
+				}
 			}
 		}),
 		passportRedirect: new Script({
