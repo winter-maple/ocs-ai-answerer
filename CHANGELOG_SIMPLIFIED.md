@@ -1,3 +1,13 @@
+## 4.11.85 (2025-11-20)
+
+
+### 🔧 修复内容
+
+* 将超星环境调整脚本整合到内部，防止全局污染 <a href="https://github.com/ocsjs/ocsjs/commit/b8a2a207a679eefd6647a9b058ea4f1dd39509fa">></a>
+* 修复中国大学MOOC作业答题错乱问题 <a href="https://github.com/ocsjs/ocsjs/commit/3dfcef1074d0e8258adee054af93ebb5d9373c35">></a>
+
+
+
 
 
 
