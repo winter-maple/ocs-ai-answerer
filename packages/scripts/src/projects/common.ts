@@ -15,6 +15,7 @@ import { markdown } from '../utils/markdown';
 import { enableCopy } from '../utils';
 import { SearchInfosElement } from '../elements/search.infos';
 import { RenderScript } from '../render';
+import { dropdownStyle } from '../utils/configs';
 
 const TAB_WORK_RESULTS_KEY = 'common.work-results.results';
 
@@ -474,7 +475,6 @@ export const CommonProject = Project.create({
 					attrs: { type: 'checkbox', title: '题库搜索不到答案时，随机填写以下任意一个文案' }
 				},
 				'randomWork-completeTexts-textarea': {
-					elementClassName: 'config-details',
 					defaultValue: ['不会', '不知道', '不清楚', '不懂', '不会写'].join('\n'),
 					label: '(仅超星)随机填空文案',
 					tag: 'textarea',
@@ -489,11 +489,24 @@ export const CommonProject = Project.create({
 					}
 				},
 				advancedSettings: {
+					...dropdownStyle,
 					defaultValue: false,
 					label: '高级设置',
 					attrs: { type: 'checkbox', title: '请谨慎使用高级设置，可能会影响答题效果，小白在未理解的情况下谨慎调整。' }
 				},
-
+				answerWrapperHandlerTimeout: {
+					showIf: 'common.settings.advancedSettings',
+					elementClassName: 'config-details',
+					label: '搜题最大耗时（秒）',
+					attrs: {
+						type: 'number',
+						min: 10,
+						step: 1,
+						max: 3 * 60,
+						title: '搜题超时时间，单位为秒，超过这个时间直接放弃，进行下一题搜索。'
+					},
+					defaultValue: 120
+				},
 				stopSecondWhenFinish: {
 					showIf: 'common.settings.advancedSettings',
 					elementClassName: 'config-details',
@@ -546,19 +559,6 @@ export const CommonProject = Project.create({
 						['similar', '相似匹配', '答案相似度达到60%以上就匹配'],
 						['exact', '精确匹配', '答案必须完全一致才匹配']
 					]
-				},
-				answerWrapperHandlerTimeout: {
-					showIf: 'common.settings.advancedSettings',
-					elementClassName: 'config-details',
-					label: '搜题最大耗时（秒）',
-					attrs: {
-						type: 'number',
-						min: 10,
-						step: 1,
-						max: 3 * 60,
-						title: '搜题超时时间，单位为秒，超过这个时间直接放弃，进行下一题搜索。'
-					},
-					defaultValue: 120
 				},
 				redundanceWordsText: {
 					showIf: 'common.settings.advancedSettings',

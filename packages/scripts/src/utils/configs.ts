@@ -58,3 +58,17 @@ export const workNotes: Config<any, string> = {
 		'⚠️禁止同时开多个作业/考试页面。'
 	]).outerHTML
 };
+
+export const dropdownStyle: Omit<Config<any, string>, 'defaultValue'> = {
+	labelClassName: 'checkbox-label',
+	providerClassName: 'checkbox-input',
+	onload(el) {
+		// @ts-ignore
+		const checked = this.checked;
+		el.classList.toggle('checked', checked);
+		this.addEventListener('change', () => {
+			// @ts-ignore
+			el.classList.toggle('checked', this.checked);
+		});
+	}
+};

@@ -987,6 +987,8 @@ search-infos-element {
 	label {
 		padding-left: 12px;
 	}
+
+	animation: fade-in 0.5s;
 }
 
 .alert-info-wrapper {
@@ -1052,4 +1054,50 @@ modal-element {
 	100% {
 		opacity: 0;
 	}
+}
+
+.checkbox-label {
+	display: inline-block !important;
+	position: relative;
+	cursor: pointer;
+	font-size: 16px;
+	color: #2c3e50;
+}
+
+/* 隐藏原始复选框 */
+.checkbox-input {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+/* 自定义按钮样式 */
+.checkbox-label::after {
+	content: '';
+	display: inline-block;
+	border-radius: 50%;
+	transition: all 0.1s ease;
+	position: relative;
+	margin-left: 4px;
+	vertical-align: middle;
+}
+
+/* 向下箭头（未选中状态） */
+.checkbox-label::before {
+	content: '🔽';
+	position: absolute;
+	width: 0;
+	height: 0;
+	right: 8px;
+	// border-left: 10px solid transparent;
+	// border-right: 10px solid transparent;
+	// border-top: 15px solid rgb(0, 0, 0);
+	transition: all 0.1s ease;
+	z-index: 2;
+}
+
+/* 向上箭头（选中状态） */
+.checked .checkbox-label::before {
+	content: '🔼';
 }

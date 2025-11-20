@@ -16,7 +16,7 @@ import {
 import { $modal, h, $store, MessageElement, Project, Script, $el, $gm, $$el, $ui, cors, $message } from 'easy-us';
 
 import { CommonProject } from './common';
-import { workNotes, volume, playbackRate } from '../utils/configs';
+import { workNotes, volume, playbackRate, dropdownStyle } from '../utils/configs';
 import { commonWork, optimizationElementWithImage, removeRedundantWords, simplifyWorkResult } from '../utils/work';
 import md5 from 'md5';
 // @ts-ignore
@@ -247,6 +247,7 @@ export const CXProject = Project.create({
 					defaultValue: true
 				},
 				enables: {
+					...dropdownStyle,
 					label: '高级设置',
 					attrs: { type: 'checkbox' },
 					defaultValue: false
