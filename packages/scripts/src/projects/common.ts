@@ -1506,6 +1506,8 @@ export const CommonProject = Project.create({
 							)
 						);
 
+						const countEl = h('span', ['当前缓存数量：' + questionCaches.length]);
+
 						$modal.simple({
 							width: 800,
 							content: h('div', [
@@ -1518,10 +1520,11 @@ export const CommonProject = Project.create({
 								h('div', { className: 'card' }, [
 									$ui.space(
 										[
-											h('span', ['当前缓存数量：' + questionCaches.length]),
+											countEl,
 											$ui.button('清空题库缓存', {}, (btn) => {
 												btn.onclick = () => {
 													this.cfg.localQuestionCaches = [];
+													countEl.innerText = '当前缓存数量：0';
 													list.forEach((el) => el.remove());
 												};
 											})
