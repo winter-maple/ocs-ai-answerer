@@ -1340,16 +1340,9 @@ export async function study(
 			if (curChapterId && curCourseId && curClazzId) {
 				// @ts-ignore
 				top._preChapterId = curChapterId.value;
-
-				const elements = CXAnalyses.getChapterInfos()
-					.map((e) => e.element.parentElement as HTMLElement)
-					.filter(Boolean);
-				const index = elements.findIndex((el) => el.classList.contains('posCatalog_active'));
-				// 如果有下一个，则滚动到那个位置
-				const next_item = elements[index + 1];
-				if (next_item) {
-					next_item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-				}
+				CXAnalyses.scrollToActiveChapter();
+				// 等待跳转动画完成
+				await $.sleep(200);
 
 				/**
 				 * count, chapterId, courseId, clazzid, knowledgestr, checkType
