@@ -1,7 +1,7 @@
 import { CommonEventEmitter } from 'easy-us';
 import { domSearchAll } from '../utils/dom';
 import { RawElements, ResolverResult, WorkContext, WorkOptions, WorkResult, WorkUploadType } from './interface';
-import { defaultQuestionResolve } from './question.resolver';
+import { createDefaultQuestionResolver } from './question.resolver';
 import { defaultWorkTypeResolver } from './utils';
 import { AnswerWrapperHandlerConfig } from '../answer-wrapper';
 
