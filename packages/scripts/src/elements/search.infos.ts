@@ -78,6 +78,16 @@ export class SearchInfosElement extends HTMLElement {
 								});
 							}
 
+							if (extra_data.cache) {
+								extra_data.tags = extra_data.tags || [];
+								extra_data.tags.push({
+									text: '题库缓存',
+									title:
+										'此答案来自本地缓存，由在线题库搜索后保存在本地。\n- 清空缓存：请前往通用-拓展应用-题库缓存\n- 关闭缓存：请前往通用-全局设置-题库缓存',
+									color: 'gray'
+								});
+							}
+
 							return h('div', { className: 'search-result' }, [
 								/** 题目 */
 								h('div', { className: 'question' }, [h('span', { innerHTML: title })]),
@@ -87,7 +97,7 @@ export class SearchInfosElement extends HTMLElement {
 									...(extra_data.tags
 										? extra_data.tags.map((tag: { text: string; title: string; color: string }) =>
 												$ui.tooltip(
-													h('code', {
+													h('span', {
 														className: 'search-result-answer-tag ' + tag.color,
 														innerHTML: tag.text,
 														title: tag.title,

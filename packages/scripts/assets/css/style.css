@@ -853,10 +853,11 @@ search-infos-element .search-result .answer code + code {
   margin-left: 4px;
 }
 search-infos-element .search-result .search-result-answer-tag {
-  padding: 2px 4px;
+  padding: 2px 6px;
   border-radius: 2px;
   font-size: 12px;
   cursor: pointer;
+  margin-right: 6px;
 }
 search-infos-element .search-result .search-result-answer-tag + .search-result-answer-tag {
   margin-left: 4px;

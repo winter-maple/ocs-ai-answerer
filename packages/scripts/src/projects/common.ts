@@ -76,7 +76,7 @@ const state = {
 /**
  * 题库缓存类型
  */
-type QuestionCache = { title: string; answer: string; from: string; homepage: string };
+type QuestionCache = { title: string; answer: string; from: string; homepage: string; ai?: boolean };
 
 export const CommonProject = Project.create({
 	name: '通用',
@@ -1424,9 +1424,9 @@ export const CommonProject = Project.create({
 						for (const cache of caches) {
 							if (cache.title.trim() === title.trim()) {
 								results.push({
-									name: `【题库缓存】${cache.from}`,
+									name: cache.from,
 									homepage: cache.homepage,
-									results: [{ answer: cache.answer, question: cache.title }]
+									results: [{ answer: cache.answer, question: cache.title, extra_data: { ai: cache.ai, cache: true } }]
 								});
 							}
 						}
