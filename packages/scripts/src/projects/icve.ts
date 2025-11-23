@@ -3,7 +3,7 @@ import {
 	SimplifyWorkResult,
 	defaultAnswerWrapperHandler,
 	OCSWorker,
-	defaultQuestionResolve,
+	createDefaultQuestionResolver,
 	splitAnswer
 } from '@ocsjs/core';
 import { $gm, cors, $message, $$el, $modal, $el, Project, Script, $ui, h } from 'easy-us';
@@ -861,7 +861,7 @@ function work({ answererWrappers, period, thread, answerSeparators, answerMatchM
 					}
 				}
 			} else {
-				const resolver = defaultQuestionResolve(ctx)[type];
+				const resolver = createDefaultQuestionResolver(ctx)[type];
 				const res = await resolver(ctx.searchInfos, ctx.elements.options, (type, answer, option) => {
 					if (type === 'judgement' || type === 'single' || type === 'multiple') {
 						// 这里只用判断多选题是否选中，如果选中就不用再点击了，单选题是 radio，所以不用判断。

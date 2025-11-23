@@ -5,7 +5,7 @@ import { StringUtils } from '../../utils/string';
 import { Rating } from 'string-similarity';
 
 /** 默认答案题目处理器 */
-export function defaultQuestionResolve<E>(
+export function createDefaultQuestionResolver<E>(
 	ctx: WorkContext<E>
 ): Record<'single' | 'multiple' | 'completion' | 'judgement', QuestionResolver<E>> {
 	return {

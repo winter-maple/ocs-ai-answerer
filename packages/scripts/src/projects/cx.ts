@@ -6,7 +6,7 @@ import {
 	$,
 	StringUtils,
 	request,
-	defaultQuestionResolve,
+	createDefaultQuestionResolver,
 	DefaultWork,
 	splitAnswer,
 	domSearch,
@@ -789,7 +789,7 @@ function workOrExam(
 			const type = getQuestionType(parseInt(typeInput.value));
 
 			if (type && (type === 'completion' || type === 'multiple' || type === 'judgement' || type === 'single')) {
-				const resolver = defaultQuestionResolve(ctx)[type];
+				const resolver = createDefaultQuestionResolver(ctx)[type];
 				return await resolver(
 					searchInfos,
 					elements.options.map((option) => optimizationElementWithImage(option)),
@@ -1811,7 +1811,7 @@ const JobRunner = {
 				const type = typeInput ? getQuestionType(parseInt(typeInput.value)) : undefined;
 
 				if (type && (type === 'completion' || type === 'multiple' || type === 'judgement' || type === 'single')) {
-					const resolver = defaultQuestionResolve(ctx)[type];
+					const resolver = createDefaultQuestionResolver(ctx)[type];
 
 					const handler: DefaultWork<any>['handler'] = (type, answer, option, ctx) => {
 						if (type === 'judgement' || type === 'single' || type === 'multiple') {
