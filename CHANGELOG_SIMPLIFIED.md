@@ -1,3 +1,12 @@
+## 4.11.95 (2025-11-23)
+
+
+### ⚡ 优化提升
+
+* aPI优化 <a href="https://github.com/ocsjs/ocsjs/commit/f988878dfb65c5feb95aaa771efe05eaa39944c0">></a>
+
+
+
 ## 4.11.94 (2025-11-23)
 
 
