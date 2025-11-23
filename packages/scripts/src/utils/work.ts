@@ -216,12 +216,19 @@ export function simplifyWorkResult(
 	const res: SimplifyWorkResult[] = [];
 	let i = 0;
 	for (const wr of results) {
+		const ques =
+			titleTransform?.(wr.ctx?.elements.title || [], i) ||
+			wr.ctx?.elements.title
+				?.map((e) => e?.innerText.trim())
+				.filter(Boolean)
+				.join('<br>') ||
+			'';
 		res.push({
 			requested: wr.requested,
 			resolved: wr.resolved,
 			error: wr.error,
 			type: wr.ctx?.type,
-			question: titleTransform?.(wr.ctx?.elements.title || [], i) || wr.ctx?.elements.title?.join(',') || '',
+			question: ques,
 			finish: wr.result?.finish,
 			searchInfos:
 				wr.ctx?.searchInfos.map((sr) => ({

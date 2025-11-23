@@ -12,7 +12,7 @@ const transformImgLinkOfQuestion = (question: string) => {
 		img.replaceWith(img.src);
 	}
 	// 最后将所有图片链接替换成 img 标签
-	return dom.documentElement.innerText.replace(/https?:\/\/.+?\.(png|jpg|jpeg|gif)/g, (img) => {
+	return dom.documentElement.innerHTML.replace(/https?:\/\/.+?\.(png|jpg|jpeg|gif)/g, (img) => {
 		return `<img src="${img}" />`;
 	});
 };
