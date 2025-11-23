@@ -836,6 +836,8 @@ search-infos-element .search-result {
 }
 search-infos-element .search-result .question {
   font-weight: bold;
+  max-height: 200px;
+  overflow: auto;
 }
 search-infos-element .search-result .answer {
   color: #7c7c7c;
@@ -939,6 +941,8 @@ search-infos-element .error {
   padding: 8px 12px;
   margin-bottom: 12px;
   line-height: 20px;
+  max-height: 400px;
+  overflow: auto;
 }
 .search-info-details {
   margin-left: 4px;
@@ -974,23 +978,6 @@ search-infos-element .error {
 }
 .console *::selection {
   background-color: #ffffff6b;
-}
-/* 设置滚动条的样式 */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-/* 滚动槽 */
-::-webkit-scrollbar-track {
-  background: #ffffffd8;
-  border-radius: 4px;
-  margin: 4px;
-}
-/* 滚动条滑块 */
-::-webkit-scrollbar-thumb {
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.253);
-  box-shadow: inset006pxrgba(0, 0, 0, 0.3);
 }
 .markdown {
   max-width: 400px;
