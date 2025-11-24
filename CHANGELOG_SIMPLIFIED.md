@@ -1,3 +1,12 @@
+## 4.11.98 (2025-11-24)
+
+
+### 🔧 修复内容
+
+* 修复上个版本无法打包的BUG <a href="https://github.com/ocsjs/ocsjs/commit/089aaafcfefcdb1ae69fde9cdb0e1ad7aed376d3">></a>
+
+
+
 ## 4.11.97 (2025-11-24)
 
 
