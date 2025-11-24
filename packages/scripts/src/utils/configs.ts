@@ -62,6 +62,7 @@ export const workNotes: Config<any, string> = {
 export const dropdownStyle: Omit<Config<any, string>, 'defaultValue'> = {
 	labelClassName: 'checkbox-label',
 	providerClassName: 'checkbox-input',
+	enableForAttribute: true,
 	onload(el) {
 		// @ts-ignore
 		const checked = this.checked;
