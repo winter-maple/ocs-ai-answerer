@@ -17,7 +17,8 @@ const $msg_and_log = (type: 'info' | 'warn' | 'error', msg: string) => {
 const state = {
 	currentMedia: undefined as HTMLMediaElement | undefined,
 	currentUrlHash: '',
-	currentRunningScriptName: ''
+	currentRunningScriptName: '',
+	current_job_id: ''
 };
 
 export const ICourseProject = Project.create({
@@ -45,8 +46,12 @@ export const ICourseProject = Project.create({
 							if (runAtHash.length && runAtHash.some((h) => state.currentUrlHash.includes(h))) {
 								if (state.currentRunningScriptName !== script.name) {
 									state.currentRunningScriptName = script.name;
-									script.methods?.main?.(() => {
-										return state.currentUrlHash && runAtHash.some((h) => state.currentUrlHash.includes(h));
+									state.current_job_id = Math.random().toString(16).slice(2);
+									script.methods?.main?.({
+										canRun: () => {
+											return state.currentUrlHash && runAtHash.some((h) => state.currentUrlHash.includes(h));
+										},
+										job_id: state.current_job_id
 									});
 								}
 								break;
@@ -134,12 +139,7 @@ export const ICourseProject = Project.create({
 			},
 			methods() {
 				return {
-					main: async (
-						/**
-						 * 是否可以继续运行（切换任务点后当前任务返回False）
-						 */
-						canRun: () => boolean
-					) => {
+					main: async ({ canRun, job_id }: { canRun: () => boolean; job_id: string }) => {
 						CommonProject.scripts.render.methods.pin(this);
 
 						const remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
@@ -155,7 +155,7 @@ export const ICourseProject = Project.create({
 						 * 处理视频弹窗题目
 						 */
 						const handleVideoTest = async () => {
-							if (!canRun()) return;
+							if (!canRun() || job_id !== state.current_job_id) return;
 							setTimeout(async () => {
 								const question = document.querySelector('.u-questionItem');
 								const media = document.querySelector('video,audio');
@@ -406,7 +406,7 @@ export const ICourseProject = Project.create({
 					});
 				};
 				return {
-					main: async (canRun: () => boolean) => {
+					main: async ({ canRun }: { canRun: () => boolean; job_id: string }) => {
 						if (location.hash.includes('learn/quizscore')) {
 							$message.success('当前作业已完成，自动答题关闭。');
 							return;
