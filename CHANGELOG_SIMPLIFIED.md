@@ -1,3 +1,24 @@
+# 4.12.0 (2025-11-27)
+
+
+### 🔧 修复内容
+
+* 修复超星答题时无法点击快速定位到题库配置界面问题 <a href="https://github.com/ocsjs/ocsjs/commit/855e8e92a647d886a578f658aa105f8686b26e49">></a>
+
+
+### ✨ 更新内容
+
+* 添加软件辅助鼠标在空闲状态下执行辅助点击等功能，防止与用户抢夺控制权 <a href="https://github.com/ocsjs/ocsjs/commit/e5b3b1e2527a1930452164d7cd1fda77eafaa8a8">></a>
+* 添加自定义答题器，可自定义题目类型、答题器等参数，自由度更高 <a href="https://github.com/ocsjs/ocsjs/commit/f1f7813849f7c7211d630f5dacbe629d74fc5b02">></a>
+* 兼容超星繁体字判断题适配 <a href="https://github.com/ocsjs/ocsjs/commit/a81cd577b1e4d9f3b42a8bed55fab4a28d151036">></a>
+
+
+### ⚡ 优化提升
+
+* 优化 waitForElement API <a href="https://github.com/ocsjs/ocsjs/commit/4cf2191be1d36a61d78c878cfd45e282ad7f095b">></a>
+
+
+
 ## 4.11.98 (2025-11-24)
 
 

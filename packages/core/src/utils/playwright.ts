@@ -318,8 +318,8 @@ function showMousePointer(el: HTMLElement) {
 
 function waitForMouseIdle(timeout: number = 200): Promise<void> {
 	return new Promise((resolve) => {
-		let timer: any = undefined;
-		let default_timer = setTimeout(() => {
+		let timer: any;
+		const default_timer = setTimeout(() => {
 			window.removeEventListener('mousemove', onMouseMove);
 			resolve();
 		}, timeout); // 最多等timeout + 1000ms
