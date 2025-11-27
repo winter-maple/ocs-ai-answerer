@@ -42,7 +42,7 @@ export async function waitForMedia(options?: {
 
 export function waitForElement(
 	selector: string | { (): HTMLElement | undefined },
-	opts?: { timeout_seconds?: number }
+	opts?: { timeout_seconds?: number; check_period_ms?: number }
 ) {
 	return new Promise<HTMLElement | undefined>((resolve, reject) => {
 		let timeout: any;
@@ -53,7 +53,7 @@ export function waitForElement(
 				timeout && clearTimeout(timeout);
 				resolve(el);
 			}
-		}, 1000);
+		}, opts?.check_period_ms || 1000);
 
 		// 超时跳过
 		if (opts?.timeout_seconds) {
