@@ -1,4 +1,4 @@
 export * from './interface';
 export * from './utils';
-export { OCSWorker } from './worker';
+export { OCSWorker, CustomOCSWorker } from './worker';
 export { createDefaultQuestionResolver } from './question.resolver';

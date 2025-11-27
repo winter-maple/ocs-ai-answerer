@@ -193,7 +193,7 @@ export type AnswererType<E> = (
 /**
  * 答题器参数
  */
-export type WorkOptions<E extends RawElements> = {
+export interface WorkOptions<E extends RawElements> {
 	/** 父元素 */
 	root: string | HTMLElement[];
 	/** dom元素解析器，可以在 WorkContext.elements 中使用解析后的元素 */
@@ -218,6 +218,33 @@ export type WorkOptions<E extends RawElements> = {
 	) => void | Promise<void>;
 	/** 监听答题结果 */
 	onResultsUpdate?: (currentResult: WorkResult<E>, currentIndex: number, res: WorkResult<E>[]) => void | Promise<void>;
-};
+}
+
+export interface CustomWorkOptions {
+	period: number;
+	questions: () => { text: string; type: QuestionTypes }[] | Promise<{ text: string; type: QuestionTypes }[]>;
+	answerer: (question: string) => SearchInformation[] | Promise<SearchInformation[]>;
+	resolver: (searchInfos: SearchInformation[]) => ResolverResult | Promise<ResolverResult>;
+
+	/** 监听答题结果 */
+	onResultsUpdate?: (
+		currentResult: SimplifyWorkResult,
+		currentIndex: number,
+		res: SimplifyWorkResult[]
+	) => void | Promise<void>;
+}
 
 export type WorkUploadType = 'save' | 'nomove' | 'force' | number;
+
+export type WorkerEvents = {
+	/** 答题开始 */
+	start: () => void;
+	/** 答题结果 */
+	done: () => void;
+	/** 关闭答题 */
+	close: () => void;
+	/** 暂停答题 */
+	stop: () => void;
+	/** 继续答题 */
+	continuate: () => void;
+};

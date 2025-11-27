@@ -13,15 +13,15 @@ export function commonWork(
 	options: {
 		start_delay_seconds?: number;
 		enable_control_panel?: boolean;
-		workerProvider: (opts: CommonWorkOptions) => OCSWorker<any> | undefined;
+		workerProvider: (opts: CommonWorkOptions) => CommonEventEmitter<WorkerEvents> | undefined;
 		beforeRunning?: () => void | Promise<void>;
 		onRestart?: () => void | Promise<void>;
-		onWorkerCreated?: (worker: OCSWorker<any>) => void | Promise<void>;
+		onWorkerCreated?: (worker: CommonEventEmitter<WorkerEvents>) => void | Promise<void>;
 	}
 ) {
 	// 置顶当前脚本
 	CommonProject.scripts.render.methods.pin(script);
-	let worker: OCSWorker<any> | undefined;
+	let worker: CommonEventEmitter<WorkerEvents> | undefined;
 
 	/**
 	 * 是否已经按下了开始按钮
@@ -146,7 +146,7 @@ export function commonWork(
  * 答题控制
  */
 export function createWorkerControl(options: {
-	workerProvider: () => OCSWorker<any> | undefined;
+	workerProvider: () => CommonEventEmitter<WorkerEvents> | undefined;
 	onStart: () => void;
 	onRestart: () => void;
 }) {
