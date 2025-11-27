@@ -17,7 +17,13 @@ import { $modal, h, $store, MessageElement, Project, Script, $el, $gm, $$el, $ui
 
 import { CommonProject } from './common';
 import { workNotes, volume, playbackRate, dropdownStyle } from '../utils/configs';
-import { commonWork, optimizationElementWithImage, removeRedundantWords, simplifyWorkResult } from '../utils/work';
+import {
+	answerWrapperEmptyWarning,
+	commonWork,
+	optimizationElementWithImage,
+	removeRedundantWords,
+	simplifyWorkResult
+} from '../utils/work';
 import md5 from 'md5';
 // @ts-ignore
 import Typr from 'typr.js';
@@ -2186,30 +2192,19 @@ function waitForFaceRecognition() {
 	});
 }
 
-function answerWrapperEmptyWarning(duration: number) {
-	const setting = h('button', { className: 'base-style-button-secondary' }, '通用-全局设置');
-	setting.onclick = () => CommonProject.scripts.render.methods.pin(CommonProject.scripts.settings);
-	if (state.study.answererWrapperUnsetMessage === undefined) {
-		state.study.answererWrapperUnsetMessage = $message.warn({
-			content: h('span', {}, ['检测到未设置题库配置，将无法自动答题，请切换到 ', setting, ' 页面进行配置。']),
-			duration: duration
-		});
-	}
-}
-
 /**
  * 答题程序位于其他 iframe 中，而 methods.pin 等 是依赖于 setTab 方法的，所以需要重新定义一个顶层函数来调用 pin 方法
  * 跨域调用
  */
 
 const CORSUtils = {
-	pinWorkPanel: cors.defineTopFunction('cx.pin.work', () => {
+	pinWorkPanel: cors.defineTopFunction(() => {
 		CommonProject.scripts.render.methods.pin(CommonProject.scripts.workResults);
 	}),
-	panelNormal: cors.defineTopFunction('cx.panel.normal', () => {
+	panelNormal: cors.defineTopFunction(() => {
 		CommonProject.scripts.render.methods.normal();
 	}),
-	panelMinimize: cors.defineTopFunction('cx.panel.minimize', () => {
+	panelMinimize: cors.defineTopFunction(() => {
 		CommonProject.scripts.render.methods.minimize();
 	})
 };

@@ -1,5 +1,5 @@
-import { OCSWorker, SimplifyWorkResult, WorkResult } from '@ocsjs/core';
-import { $ui, $message, MessageElement, Script, h } from 'easy-us';
+import { SimplifyWorkResult, WorkerEvents, WorkResult } from '@ocsjs/core';
+import { $ui, $message, MessageElement, Script, h, CommonEventEmitter, cors, $elements } from 'easy-us';
 import { CommonProject } from '../projects/common';
 import { CommonWorkOptions, workPreCheckMessage } from '.';
 
@@ -43,7 +43,10 @@ export function commonWork(
 			workerProvider: () => worker,
 			onStart: async () => {
 				startBtnPressed = true;
-				checkMessage?.remove();
+				if (checkMessage instanceof MessageElement) {
+					checkMessage.remove();
+				}
+				closeAnswerWrapperEmptyWarning();
 				start();
 			},
 			onRestart: async () => {
@@ -253,3 +256,26 @@ export function removeRedundantWords(str: string, words: string[]) {
 	}
 	return str;
 }
+
+let answererWrapperUnsetMessage: MessageElement | undefined;
+
+export const answerWrapperEmptyWarning = cors.defineTopFunction((duration: number) => {
+	const setting = h('button', { className: 'base-style-button-secondary' }, '通用-全局设置');
+	setting.onclick = () => {
+		CommonProject.scripts.render.methods.pin(CommonProject.scripts.settings);
+		setTimeout(() => {
+			$elements.root?.querySelector<HTMLElement>('[value="点击配置"]')?.click();
+		}, 500);
+	};
+
+	answererWrapperUnsetMessage?.remove();
+	answererWrapperUnsetMessage = $message.warn({
+		content: h('span', {}, ['你还没设置题库，无法自动答题，请切换到 ', setting, ' 页面进行配置。']),
+		duration: duration
+	});
+});
+
+export const closeAnswerWrapperEmptyWarning = cors.defineTopFunction(() => {
+	answererWrapperUnsetMessage?.remove();
+	answererWrapperUnsetMessage = undefined;
+});

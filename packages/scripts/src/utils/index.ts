@@ -1,6 +1,7 @@
 import { $, AnswerMatchMode, AnswererWrapper, WorkUploadType } from '@ocsjs/core';
 import { $ui, $message, $modal, MessageElement, h } from 'easy-us';
 import { $console } from '../projects/background';
+import { answerWrapperEmptyWarning } from './work';
 
 export interface CommonWorkOptions {
 	period: number;
@@ -32,10 +33,7 @@ export function workPreCheckMessage(
 
 	if (opts.answererWrappers.length === 0) {
 		onNoAnswererWrappers?.(opts);
-		return $message.warn({
-			content: '检测到题库配置为空，无法自动答题，请前往 通用-全局设置 页面进行配置。',
-			duration: 0
-		});
+		return answerWrapperEmptyWarning(0);
 	} else {
 		options.start_delay_seconds = options.start_delay_seconds ?? 5;
 		return $message.info({
