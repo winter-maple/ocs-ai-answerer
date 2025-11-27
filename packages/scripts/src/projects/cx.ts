@@ -1947,6 +1947,12 @@ const JobRunner = {
 							option.textContent = '√';
 						} else if (opt === 'False') {
 							option.textContent = 'x';
+						}
+						// 支持香港地区的繁体字
+						else if (opt === '對') {
+							option.textContent = '√';
+						} else if (opt === '錯') {
+							option.textContent = 'x';
 						} else {
 							const ri = option.querySelector('.ri');
 							const span = document.createElement('span');
