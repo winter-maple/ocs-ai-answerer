@@ -238,18 +238,37 @@ export const ZJYProject = Project.create({
 						}
 
 						const courseInfo = ZJYProject.scripts.study.cfg.courseList.find((i) => i.id === id);
+						if (!courseInfo) {
+							const btn = h('button', { className: 'base-style-button' }, '修复数据');
+							btn.onclick = async () => {
+								const courseId = getUniqueCourseId();
+								if (!courseId) {
+									$message.error({ content: '获取课程数据失败！' });
+									return;
+								}
+								const courseData = await getCourseData();
+								if (!courseData) {
+									return;
+								}
+								ZJYProject.scripts.study.cfg.currentCourseId = courseId;
+								ZJYProject.scripts.study.cfg.courseList = courseData;
+								$modal.simple({
+									title: '提示',
+									content: '数据已修复完毕，请刷新页面重新尝试运行。'
+								});
+							};
+							const err = '获取课程信息失败，请手动刷新页面，或者尝试修复数据：';
+							$message.error({ content: h('span', [err, btn]), duration: 0 });
+							$console.error(err);
+							return;
+						}
+
 						/**
 						 * courseType 在类型为文件夹+附件形式（附件为视频）时，显示混乱类型比如：courseType: 知识点讲解
 						 * 此时从页面获取的 curType 反而是正确的 video 类型
 						 */
 						const vue = getVueBindElement();
 						const courseType = vue.curType === 'video' ? 'video' : courseInfo?.fileType || '';
-						if (!courseInfo) {
-							const err = '获取课程信息失败，请手动刷新页面';
-							$message.error({ content: err, duration: 0 });
-							$console.error(err);
-							return;
-						}
 
 						const started_url = window.location.href;
 						let msg = '开始学习：' + courseType + '-' + courseInfo.name;
