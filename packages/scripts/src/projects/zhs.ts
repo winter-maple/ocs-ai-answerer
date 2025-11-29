@@ -2406,8 +2406,10 @@ function gxkWorkAndExam(
 					return;
 				}
 				const modal = $modal.alert({
-					content: '正在保存题目中（必须保存，否则填写的答案无效），<br>请勿操作...',
-					confirmButton: null
+					title: '⚠️提示',
+					content: `正在自动保存题目中，不然填写的答案将无效，<br>当前进度 ${index}/${worker.totalQuestionCount}<br>保存完毕前请勿操作...`,
+					confirmButton: null,
+					maskCloseable: false
 				});
 				await waitForCaptcha();
 				await $.sleep(2000);
