@@ -1,3 +1,18 @@
+## 4.12.3 (2025-12-03)
+
+
+### 🔧 修复内容
+
+* 添加职教云资源库修复功能按钮 <a href="https://github.com/ocsjs/ocsjs/commit/898bb3b31ca18740b4cf4072369adf45150f1b3d">></a>
+* 修复中国大学MOOC新版考试无法运行的BUG <a href="https://github.com/ocsjs/ocsjs/commit/8f0a18824ec7839a288620cf9c58cd79ec11ca57">></a>
+
+
+### ⚡ 优化提升
+
+* 加强智慧树作业考试自动保存警告 <a href="https://github.com/ocsjs/ocsjs/commit/7a44eb7a70ca23547f55419fa3c7e69755c0c038">></a>
+
+
+
 # 4.12.0 (2025-11-27)
 
 
