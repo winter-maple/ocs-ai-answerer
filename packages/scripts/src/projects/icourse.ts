@@ -419,9 +419,11 @@ export const ICourseProject = Project.create({
 			// 考试是新开一个界面所以会直接触发
 			oncomplete() {
 				if (
-					location.href.includes('/learn/examObject') &&
-					// 考试成绩解析页面
-					!location.href.includes('learn/examObjectScore')
+					(location.href.includes('/learn/examObject') &&
+						// 考试成绩解析页面
+						!location.href.includes('learn/examObjectScore')) ||
+					// 新版考试界面
+					location.href.includes('/mooc/main/newExam')
 				) {
 					this.methods.start('exam', () => true);
 				}
@@ -435,6 +437,7 @@ export const ICourseProject = Project.create({
 					defaultValue: $ui.notes(['检测到页面重定向到空白页面', '程序将会自动修复']).outerHTML
 				}
 			},
+			hideInPanel: true,
 			oncomplete(...args) {
 				CommonProject.scripts.render.methods.pin(this);
 				$message.info('检测到中国大学MOOC空白页面，即将重定向修复...');
