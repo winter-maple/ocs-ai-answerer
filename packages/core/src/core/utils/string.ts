@@ -6,6 +6,7 @@ import { findBestMatch, Rating } from 'string-similarity';
  * @returns
  */
 export function clearString(str: string, ...exclude: string[]) {
+	exclude.push(...['①②③④⑤⑥⑦⑧⑨']);
 	return str
 		.trim()
 		.toLocaleLowerCase()
