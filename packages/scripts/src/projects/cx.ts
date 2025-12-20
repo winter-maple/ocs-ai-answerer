@@ -1506,13 +1506,16 @@ function searchJob(
 								// / 强制学习
 								(work_type === 'not-job' && CommonProject.scripts.settings.cfg['work-when-no-job'])
 							) {
-								func = () => {
-									const msg = `开始答题 : ` + jobName;
-									$message.info({ content: msg });
-									$console.log(msg);
-
-									return JobRunner.chapter(root, opts.workOptions);
-								};
+								if (opts.workOptions.answererWrappers === undefined || opts.workOptions.answererWrappers.length === 0) {
+									answerWrapperEmptyWarning(0);
+								} else {
+									func = () => {
+										const msg = `开始答题 : ` + jobName;
+										$message.info({ content: msg });
+										$console.log(msg);
+										return JobRunner.chapter(root, opts.workOptions);
+									};
+								}
 							}
 							if (work_type === 'not-job' && CommonProject.scripts.settings.cfg['work-when-no-job'] === false) {
 								const msg = `当前作业 ${jobName} 不是任务点，但待完成，如需开启自动答题请前往：通用-全局设置，开启强制答题。`;

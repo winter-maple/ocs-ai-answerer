@@ -46,7 +46,7 @@ export function commonWork(
 				if (checkMessage instanceof MessageElement) {
 					checkMessage.remove();
 				}
-				closeAnswerWrapperEmptyWarning();
+				await closeAnswerWrapperEmptyWarning();
 				start();
 			},
 			onRestart: async () => {
