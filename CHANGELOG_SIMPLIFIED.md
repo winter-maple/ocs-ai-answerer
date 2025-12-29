@@ -1,3 +1,12 @@
+## 4.12.11 (2025-12-29)
+
+
+### 🔧 修复内容
+
+* 添加 git workflow 输出 <a href="https://github.com/ocsjs/ocsjs/commit/467d53d5f96c44cb3629723ebf471a13b65e4b49">></a>
+
+
+
 ## 4.12.10 (2025-12-29)
 
 
