@@ -1,9 +1,9 @@
-## [4.12.11](https://github.com/ocsjs/ocsjs/compare/4.12.10...4.12.11) (2025-12-29)
+## [4.12.12](https://github.com/ocsjs/ocsjs/compare/4.12.11...4.12.12) (2025-12-29)
 
 
 ### Bug Fixes
 
-* 添加 git workflow 输出 ([467d53d](https://github.com/ocsjs/ocsjs/commit/467d53d5f96c44cb3629723ebf471a13b65e4b49))
+* 修复 github workflow 运行后 release 不显示更新内容的BUG ([96065e7](https://github.com/ocsjs/ocsjs/commit/96065e70fcea1226ffc97f6759ec4b10e0e6783c))
 
 
 
