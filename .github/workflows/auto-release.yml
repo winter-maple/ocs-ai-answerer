@@ -52,7 +52,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           if [ -f "CHANGELOG_CURRENT.md" ]; then
-            CHANGE_LOGS=$(awk '/^## v/{if(flag) exit; flag=1} flag' CHANGELOG_CURRENT.md)
+            CHANGE_LOGS=$(awk '/^##[[:space:]]+(\[)?v?[0-9]/{if(flag) exit; flag=1} flag' CHANGELOG_CURRENT.md)
             if [ -n "$CHANGE_LOGS" ]; then
               echo "Found change logs"
               echo "CHANGE_LOGS<<EOF" >> $GITHUB_ENV
