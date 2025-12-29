@@ -1,3 +1,12 @@
+## 4.12.9 (2025-12-29)
+
+
+### 🔧 修复内容
+
+* 修复 github workflow 运行后 release 不显示更新内容的BUG <a href="https://github.com/ocsjs/ocsjs/commit/2bacbfd0dcfe4f35d8058aee92aec07a376b96c4">></a>
+
+
+
 ## 4.12.8 (2025-12-29)
 
 
