@@ -51,18 +51,18 @@ jobs:
       - name: Fetch Change logs
         if: runner.os == 'Linux'
         run: |
-          if [ -f "CHANGELOG.md" ]; then
-            CHANGE_LOGS=$(awk '/^## \[[0-9]/{if(flag) exit; flag=1} flag' CHANGELOG.md)
+          if [ -f "CHANGELOG_CURRENT.md" ]; then
+            CHANGE_LOGS=$(cat CHANGELOG_CURRENT.md)
             if [ -n "$CHANGE_LOGS" ]; then
               echo "Found change logs"
               echo "CHANGE_LOGS<<EOF" >> $GITHUB_ENV
               echo "$CHANGE_LOGS" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
             else
-              echo "No change sections found in CHANGELOG.md"
+              echo "No change sections found in CHANGELOG_CURRENT.md"
             fi
           else
-            echo "CHANGELOG.md file not found"
+            echo "CHANGELOG_CURRENT.md file not found"
           fi
         shell: bash
       - name: Generate release.txt
