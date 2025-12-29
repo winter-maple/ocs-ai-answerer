@@ -1477,7 +1477,10 @@ export const ZHSProject = Project.create({
 		}),
 		'wisdom-study': new Script({
 			name: '🖥️ 新智慧学习-学习脚本',
-			matches: [['2025-9月新智慧学习页面', 'studywisdomh5.zhihuishu.com/study/index']],
+			matches: [
+				['2025-9月新智慧学习页面', 'studywisdomh5.zhihuishu.com/study/index'],
+				['2025-12月新智慧学习页面', 'wisdom-mooc.zhihuishu.com/study/index']
+			],
 			namespace: 'zhs.wisdom.study',
 			configs: {
 				notes: {
