@@ -51,6 +51,9 @@ jobs:
       - name: Fetch Change logs
         if: runner.os == 'Linux'
         run: |
+          echo "pwd: $(pwd)"
+          echo "files:"
+          ls -la
           if [ -f "CHANGELOG_CURRENT.md" ]; then
             CHANGE_LOGS=$(cat CHANGELOG_CURRENT.md)
             if [ -n "$CHANGE_LOGS" ]; then
