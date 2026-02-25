@@ -397,15 +397,17 @@ class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
 	}
 
 	getChapterName(item: HTMLElement): string {
-		return item.parentElement?.textContent || '未知章节';
+		return item.textContent || '未知章节';
 	}
 
 	hasJob() {
-		return $$el('.category-wrapper .child')?.length > 0;
+		return $$el('.chapter-content .chapter-content-second')?.length > 0;
 	}
 
 	getNext(opts: { next: boolean; restudy: boolean }) {
-		let jobs = Array.from(document.querySelectorAll<HTMLElement>('.category-wrapper .child-info.hasvideo'));
+		let jobs = Array.from(
+			document.querySelectorAll<HTMLElement>('.chapter-content .chapter-item .chapter-content-second')
+		);
 		console.log(jobs);
 		// 如果不是复习模式，则排除掉已经完成的任务
 		if (!opts.restudy) {
@@ -434,9 +436,9 @@ class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
 	}
 
 	async handleTestDialog(remotePage?: RemotePage) {
-		const question_box = $el('.question-body');
+		const question_box = $el('.ai-class-exercise-dialog');
 		if (question_box) {
-			const options = $$el('.question-body .options .option');
+			const options = $$el('.ques-list .item .option');
 			$message.info('正在关闭弹窗测验...');
 			if (options.length !== 0) {
 				await waitForCaptcha();
@@ -456,21 +458,21 @@ class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
 			}
 			await $.sleep(1000);
 
-			const submit_btn = $el('.submit-btn .submits');
+			const submit_btn = $el('.ai-class-exercise-dialog .el-dialog__footer .el-button.btn');
 			if (submit_btn) {
 				if (remotePage) {
-					await remotePage.hover('.submit-btn .submits');
-					await remotePage.click('.submit-btn .submits');
+					await remotePage.hover('.ai-class-exercise-dialog .el-dialog__footer .el-button.btn');
+					await remotePage.click('.ai-class-exercise-dialog .el-dialog__footer .el-button.btn');
 				} else {
 					submit_btn.click();
 				}
 			}
 
-			const close_btn = $el('.header-box .close-box');
+			const close_btn = $el('.ai-class-exercise-dialog .header-icon');
 			if (close_btn) {
 				if (remotePage) {
-					await remotePage.hover('.header-box .close-box');
-					await remotePage.click('.header-box .close-box');
+					await remotePage.hover('.ai-class-exercise-dialog .header-icon');
+					await remotePage.click('.ai-class-exercise-dialog .header-icon');
 				} else {
 					close_btn.click();
 				}
@@ -1525,8 +1527,6 @@ export const ZHSProject = Project.create({
 				CommonProject.scripts.render.methods.pin(this);
 				const processor = new WishdomH5();
 
-				const getChapterName = () => document.querySelector('.video-study-wrapper-title')?.textContent || '未知章节';
-
 				// // 点击显示进度条，否则无法进行倍速，清晰度等操作
 				// const showControlBar = async () => {
 				// 	await processor.remotePage?.hover('.videoArea');
@@ -1557,12 +1557,12 @@ export const ZHSProject = Project.create({
 				});
 
 				const next = async () => {
-					const show = $el('.side-expand-box.animated-box.show');
-					if (show) {
+					const hidden = $el('.chapter-wrapper.hidden');
+					if (hidden) {
 						if (processor.remotePage) {
-							await processor.remotePage.click(show);
+							await processor.remotePage.click('.collapse-box');
 						} else {
-							show.click();
+							hidden.click();
 						}
 					}
 
@@ -1581,6 +1581,7 @@ export const ZHSProject = Project.create({
 						await waitForMasteryLevelDialogClose();
 						// 展开章节
 						await processor.remotePage?.click(nextJob);
+						nextJob.scrollIntoView({ behavior: 'smooth', block: 'center' });
 						doWork();
 					} else {
 						finishAlert();
@@ -1774,7 +1775,8 @@ export const ZHSProject = Project.create({
 					}, 3000);
 
 					playMedia(() => video?.play()).then(() => {
-						const cn = getChapterName();
+						const current = document.querySelector<HTMLElement>('.chapter-content-second.current');
+						const cn = current ? processor.getChapterName(current) : '未知章节';
 						$message.info({ content: '正在学习：' + cn });
 						$console.log('正在学习：' + cn);
 					});
