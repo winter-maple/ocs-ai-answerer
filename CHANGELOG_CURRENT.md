@@ -1,9 +1,9 @@
-## [4.12.13](https://github.com/ocsjs/ocsjs/compare/4.12.12...4.12.13) (2026-02-25)
+## [4.12.14](https://github.com/ocsjs/ocsjs/compare/4.12.13...4.12.14) (2026-02-28)
 
 
-### Bug Fixes
+### Features
 
-* **script:** 适配 2026 上学期智慧树-新智慧学习界面 ([6f449cc](https://github.com/ocsjs/ocsjs/commit/6f449ccfc25c6d99d287ae39a6434a8a28a07f58))
+* **script:** 添加ZE题库域名白名单授权 ([a5bdb91](https://github.com/ocsjs/ocsjs/commit/a5bdb919b28f87023e79230930f46245326aef6d))
 
 
 
