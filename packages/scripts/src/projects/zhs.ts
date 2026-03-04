@@ -405,9 +405,19 @@ class WishdomH5 extends StudyVideoH5 implements ZHSProcessor {
 	}
 
 	getNext(opts: { next: boolean; restudy: boolean }) {
-		let jobs = Array.from(
-			document.querySelectorAll<HTMLElement>('.chapter-content .chapter-item .chapter-content-second')
-		);
+		let jobs = Array.from(document.querySelectorAll<HTMLElement>('.chapter-content .chapter-item'));
+
+		jobs = jobs
+			.map((el) => {
+				const children = el.querySelectorAll<HTMLElement>('.chapter-content-second');
+				if (children.length > 0) {
+					return Array.from(children);
+				} else {
+					return [el];
+				}
+			})
+			.flat();
+
 		console.log(jobs);
 		// 如果不是复习模式，则排除掉已经完成的任务
 		if (!opts.restudy) {
@@ -1562,9 +1572,13 @@ export const ZHSProject = Project.create({
 						if (processor.remotePage) {
 							await processor.remotePage.click('.collapse-box');
 						} else {
-							hidden.click();
+							await hidden.click();
 						}
 					}
+
+					// 全部章节下拉展开
+					document.querySelectorAll<HTMLElement>('.el-collapse-item__wrap').forEach((e) => (e.style.display = ''));
+					await $.sleep(200);
 
 					const nextJob = processor.getNext({ next: true, restudy: this.cfg.restudy });
 					if (nextJob) {
@@ -1775,7 +1789,9 @@ export const ZHSProject = Project.create({
 					}, 3000);
 
 					playMedia(() => video?.play()).then(() => {
-						const current = document.querySelector<HTMLElement>('.chapter-content-second.current');
+						const current = document.querySelector<HTMLElement>(
+							'.chapter-item.current , .chapter-content-second.current'
+						);
 						const cn = current ? processor.getChapterName(current) : '未知章节';
 						$message.info({ content: '正在学习：' + cn });
 						$console.log('正在学习：' + cn);
