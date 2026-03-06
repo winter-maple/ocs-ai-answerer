@@ -1,3 +1,13 @@
+## 4.12.16 (2026-03-06)
+
+
+### 🔧 修复内容
+
+* 修复智慧课程AI伴学的视频无法检测，以及掌握度只有一题的情况无法答题的BUG <a href="https://github.com/ocsjs/ocsjs/commit/8ff88f2ddf2a16852082b5ca7d84575d5215bb6a">></a>
+* 优化 eslint 报错 <a href="https://github.com/ocsjs/ocsjs/commit/036644fc351cbdba3cca55655200bf1cd421dc92">></a>
+
+
+
 ## 4.12.15 (2026-03-04)
 
 
