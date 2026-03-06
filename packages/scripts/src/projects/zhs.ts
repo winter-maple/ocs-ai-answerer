@@ -30,7 +30,7 @@ const state = {
 /**
  * 需要软件辅助的掌握度页面
  */
-const remote_required_pages = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'];
+const remote_not_required_pages = ['fusioncourseh5.zhihuishu.com', 'studywisdomh5.zhihuishu.com'];
 
 const gxk_read_notes = [
 	'⚠️ 如果未开始答题，请尝试刷新页面。',
@@ -1087,16 +1087,16 @@ export const ZHSProject = Project.create({
 						const getChapterName = () =>
 							(document.querySelector('.point-title-text')?.textContent || '未知章节') +
 							'-' +
-							(document.querySelector('.resources-item .active .video-title')?.textContent || '未知小节');
+							(document.querySelector('[class*="card-container"].active .video-title')?.textContent || '未知小节');
 
 						// 需点击的任务点，其他是是外部链接或者未知任务点
 						const include_jobs = ['video', 'book', /** 一般是PPT */ 'other', /** 一般是文档 */ 'text'];
 
 						const getNextJob = () => {
-							const cards = Array.from(document.querySelectorAll('.resources-item'));
+							const cards = Array.from(document.querySelectorAll('[class*="card-container"]'));
 
 							// 如果没有正在选中的章节，证明第一个就是外链模式，此时默认点击第一个
-							if (cards.some((card) => card.querySelector('.active')) === false) {
+							if (cards.some((card) => card.classList.contains('active')) === false) {
 								return cards[0];
 							}
 
@@ -1109,18 +1109,17 @@ export const ZHSProject = Project.create({
 										target_el = card;
 										break;
 									} else {
-										if (card.querySelector('.finished-icon')) {
+										if (card.querySelector('.finished-icon')?.textContent.includes('已完成')) {
 											continue;
 										}
 										target_el = card;
 										break;
 									}
 								}
-								if (card.querySelector('.active')) {
+								if (card.classList.contains('active')) {
 									start = true;
 								}
 							}
-
 							return target_el;
 						};
 						const getNext = () => {
@@ -1191,6 +1190,7 @@ export const ZHSProject = Project.create({
 
 							const next = async () => {
 								const nextJob = getNextJob();
+
 								if (nextJob) {
 									const nextJobTitle = nextJob.querySelector('.common-text') as HTMLElement;
 
@@ -1198,7 +1198,9 @@ export const ZHSProject = Project.create({
 									 * 链接任务点不会自动取消 active 样式，导致无法获取下一个任务点
 									 * 这里手动移除 active 样式，避免影响获取下一个任务点
 									 */
-									document.querySelectorAll('.resources-item .active').forEach((el) => el.classList.remove('active'));
+									document
+										.querySelectorAll('[class*="card-container"].active')
+										.forEach((el) => el.classList.remove('active'));
 
 									if (include_jobs.some((job) => nextJob.querySelector('.icon-box')?.classList.contains(job))) {
 										nextJobTitle.click();
@@ -1321,7 +1323,7 @@ export const ZHSProject = Project.create({
 						'可以搭配 “通用-在线搜题” 一起使用。',
 						'⚠️ 如果没开始答题，请尝试刷新页面。',
 						'⚠️ 禁止一次性打开多个作业/考试页面。',
-						...(remote_required_pages.some((domain) => location.href.includes(domain))
+						...(remote_not_required_pages.some((domain) => location.href.includes(domain))
 							? []
 							: ['⚠️ 答题中请勿进行任何操作，如需暂停答题', '请等待全部题目搜索完成并执行自动保存功能后才能操作。'])
 					]).outerHTML
@@ -1340,11 +1342,11 @@ export const ZHSProject = Project.create({
 
 						let remotePage: RemotePage | undefined;
 						// 掌握度
-						const remote_required = remote_required_pages.some((domain) => location.href.includes(domain));
+						const remote_not_required = remote_not_required_pages.some((domain) => location.href.includes(domain));
 
-						remote_required ? await waitForElement('.exam-item') : await waitForElement('.questionContent');
+						remote_not_required ? await waitForElement('.exam-item') : await waitForElement('.questionContent');
 
-						if (remote_required) {
+						if (remote_not_required) {
 							// 这两个页面不需要软件辅助
 						} else {
 							remotePage = await BackgroundProject.scripts.dev.methods.getRemotePlaywrightCurrentPage();
@@ -1359,7 +1361,7 @@ export const ZHSProject = Project.create({
 
 						commonWork(this, {
 							workerProvider: (opts) => {
-								if (remote_required) {
+								if (remote_not_required) {
 									return fusioncourseWork(remotePage, opts);
 								} else {
 									return smartWork(remotePage, opts);
@@ -2660,7 +2662,6 @@ function smartWork(
 				}
 			}
 		},
-
 		/**
 		 * 作业都是一题一题做的，不像其他自动答题一样可以获取全部试卷内容。
 		 * 所以只能根据自定义的状态进行搜索结果的显示。
@@ -2688,7 +2689,7 @@ function smartWork(
 	});
 
 	const getNextBtn = () => document.querySelector<HTMLElement>('.next-topic.next-t');
-	let next = getNextBtn();
+	let next = null as HTMLElement | null;
 
 	(async () => {
 		// 从第一题开始
@@ -2699,17 +2700,19 @@ function smartWork(
 			await $.sleep(3000);
 		}
 		let count = 0;
-		while (next && worker.isClose === false) {
+		while (worker.isClose === false) {
 			await worker.doWork({ enable_debug: true });
 			next = getNextBtn();
-			if (next) {
-				await $.sleep(1000);
-				if (remotePage) await remotePage.click(next);
-				else next.click();
-				// 等待题目加载
-				await $.sleep(1000);
-				count++;
+			if (!next) {
+				break;
 			}
+
+			await $.sleep(1000);
+			if (remotePage) await remotePage.click(next);
+			else next.click();
+			// 等待题目加载
+			await $.sleep(1000);
+			count++;
 		}
 
 		$message.info({
