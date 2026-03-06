@@ -1109,7 +1109,7 @@ export const ZHSProject = Project.create({
 										target_el = card;
 										break;
 									} else {
-										if (card.querySelector('.finished-icon')?.textContent.includes('已完成')) {
+										if (card.querySelector('.finished-icon')?.textContent?.includes('已完成')) {
 											continue;
 										}
 										target_el = card;
