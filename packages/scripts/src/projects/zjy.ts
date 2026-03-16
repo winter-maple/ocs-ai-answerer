@@ -431,16 +431,15 @@ async function next(type: 'classroomNow' | 'normal') {
 	const id = new URL(window.location.href).searchParams.get(field);
 	let nextObject: CourseType | undefined;
 	const data = ZJYProject.scripts.study.cfg.courseList;
-	for (let index = 0; index < data.length; index++) {
+	const start_index = data.findIndex((i) => i.id === id);
+	for (let index = start_index + 1; index < data.length; index++) {
 		const item = data[index];
 		// 跳过讨论
 		if (['测验', '讨论'].some((i) => item.fileType === i)) {
 			continue;
 		}
-		if (item.id === id) {
-			nextObject = data[index + 1];
-			break;
-		}
+		nextObject = item;
+		break;
 	}
 
 	if (id && nextObject) {
