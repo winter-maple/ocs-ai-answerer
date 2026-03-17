@@ -190,7 +190,7 @@ export function optimizationElementWithImage(root: HTMLElement, clone_node: bool
 		// 如果已经存在识别结果，则不处理
 		if (
 			Array.from(img.parentElement!.querySelectorAll('span')).some(
-				(e) => e.style.fontSize === '0px' && e.textContent.includes(img.src)
+				(e) => e.style.fontSize === '0px' && e.textContent?.includes(img.src)
 			)
 		) {
 			continue;
