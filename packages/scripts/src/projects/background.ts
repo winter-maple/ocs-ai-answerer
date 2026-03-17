@@ -508,6 +508,11 @@ export const BackgroundProject = Project.create({
 					defaultValue: true,
 					label: '软件辅助点击时显示鼠标位置',
 					attrs: { type: 'checkbox' }
+				},
+				enable_answerer_debug: {
+					defaultValue: true,
+					label: '开启答题日志输出',
+					attrs: { type: 'checkbox' }
 				}
 			},
 			methods() {

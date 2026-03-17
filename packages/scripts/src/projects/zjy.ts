@@ -3,7 +3,7 @@ import { Project, Script, $ui, $el, $message, $modal, h } from 'easy-us';
 import { volume } from '../utils/configs';
 import { waitForMedia, waitForElement } from '../utils/study';
 import { CommonWorkOptions, playMedia } from '../utils';
-import { $console } from './background';
+import { $console, BackgroundProject } from './background';
 import { CommonProject } from './common';
 import { commonWork, simplifyWorkResult } from '../utils/work';
 
@@ -706,7 +706,7 @@ function workOrExam(
 	});
 
 	worker
-		.doWork({ enable_debug: true })
+		.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug })
 		.then(() => {
 			$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
 			worker.emit('done');

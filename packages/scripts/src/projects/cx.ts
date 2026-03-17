@@ -27,7 +27,7 @@ import {
 import md5 from 'md5';
 // @ts-ignore
 import Typr from 'typr.js';
-import { $console } from './background';
+import { $console, BackgroundProject } from './background';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { waitForMedia } from '../utils/study';
 
@@ -901,7 +901,7 @@ function workOrExam(
 
 		(async () => {
 			while (next && worker.isClose === false) {
-				await worker.doWork({ enable_debug: true });
+				await worker.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug });
 				await $.sleep(1000);
 				next = getNextBtn();
 				next?.click();

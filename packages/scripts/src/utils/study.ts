@@ -44,14 +44,20 @@ export function waitForElement(
 	selector: string | { (): HTMLElement | undefined },
 	opts?: { timeout_seconds?: number; check_period_ms?: number }
 ) {
-	return new Promise<HTMLElement | undefined>((resolve, reject) => {
+	return waitFor(() => {
+		return typeof selector === 'function' ? selector() : document.querySelector<HTMLElement>(selector);
+	}, opts);
+}
+
+export function waitFor<T>(predicate: () => T, opts?: { timeout_seconds?: number; check_period_ms?: number }) {
+	return new Promise<T>((resolve, reject) => {
 		let timeout: any;
 		const interval = setInterval(() => {
-			const el = typeof selector === 'function' ? selector() : document.querySelector<HTMLElement>(selector);
-			if (el) {
+			const result = predicate();
+			if (result) {
 				clearInterval(interval);
 				timeout && clearTimeout(timeout);
-				resolve(el);
+				resolve(result);
 			}
 		}, opts?.check_period_ms || 1000);
 
@@ -59,7 +65,7 @@ export function waitForElement(
 		if (opts?.timeout_seconds) {
 			timeout = setTimeout(() => {
 				clearInterval(interval);
-				resolve(undefined);
+				resolve(undefined as any);
 			}, (opts?.timeout_seconds || 10) * 1000);
 		}
 	});

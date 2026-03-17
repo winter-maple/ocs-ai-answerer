@@ -12,7 +12,7 @@ import { playbackRate, restudy, volume } from '../utils/configs';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { CommonProject } from './common';
 import { commonWork, simplifyWorkResult } from '../utils/work';
-import { $console } from './background';
+import { $console, BackgroundProject } from './background';
 import { waitForElement, waitForMedia } from '../utils/study';
 
 const state = {
@@ -924,7 +924,7 @@ function work({ answererWrappers, period, thread, answerSeparators, answerMatchM
 
 	(async () => {
 		while (next && worker.isClose === false) {
-			await worker.doWork({ enable_debug: true });
+			await worker.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug });
 			await $.sleep(1000);
 			next = getNextBtn();
 			if (next.style.display === 'none') {
@@ -1065,7 +1065,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 
 	(async () => {
 		while (next && worker.isClose === false) {
-			await worker.doWork({ enable_debug: true });
+			await worker.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug });
 			await $.sleep(1000);
 			next = getNextBtn();
 			if (next.getAttribute('disabled')) {

@@ -568,7 +568,7 @@ function workAndExam(
 	});
 
 	worker
-		.doWork({ enable_debug: true })
+		.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug })
 		.then(async (results) => {
 			if (worker.isClose) {
 				return;

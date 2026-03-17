@@ -2701,7 +2701,7 @@ function smartWork(
 		}
 		let count = 0;
 		while (worker.isClose === false) {
-			await worker.doWork({ enable_debug: true });
+			await worker.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug });
 			next = getNextBtn();
 			if (!next) {
 				break;
@@ -2959,7 +2959,7 @@ function hikeWork(
 		}
 
 		while (next && worker.isClose === false) {
-			await worker.doWork({ enable_debug: true });
+			await worker.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug });
 			next = getNextBtn();
 			if (next) {
 				await $.sleep(1000);
