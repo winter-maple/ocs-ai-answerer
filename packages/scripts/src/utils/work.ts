@@ -187,6 +187,15 @@ export function createWorkerControl(options: {
 export function optimizationElementWithImage(root: HTMLElement, clone_node: boolean = false): HTMLElement {
 	const clone = clone_node ? (root.cloneNode(true) as HTMLElement) : root;
 	for (const img of Array.from(clone.querySelectorAll('img'))) {
+		// 如果已经存在识别结果，则不处理
+		if (
+			Array.from(img.parentElement!.querySelectorAll('span')).some(
+				(e) => e.style.fontSize === '0px' && e.textContent.includes(img.src)
+			)
+		) {
+			continue;
+		}
+
 		const src = document.createElement('span');
 		src.innerText = img.src;
 		// 隐藏图片，但不影响 innerText 的获取
