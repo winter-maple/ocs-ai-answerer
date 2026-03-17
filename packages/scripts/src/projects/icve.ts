@@ -4,7 +4,8 @@ import {
 	defaultAnswerWrapperHandler,
 	OCSWorker,
 	createDefaultQuestionResolver,
-	splitAnswer
+	splitAnswer,
+	QuestionTypes
 } from '@ocsjs/core';
 import { $gm, cors, $message, $$el, $modal, $el, Project, Script, $ui, h } from 'easy-us';
 import { playbackRate, restudy, volume } from '../utils/configs';
@@ -979,7 +980,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 				: 'single'
 			: options.some((o) => o.querySelector('[type="checkbox"]'))
 			? 'multiple'
-			: options.some((o) => o.querySelector('textarea'))
+			: options.some((o) => o.querySelector('textarea')) || options.some((o) => o.classList.contains('ivu-input'))
 			? 'completion'
 			: options.some((o) => o.querySelector('.fillblank_input input'))
 			? 'fill-blank'
@@ -990,7 +991,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 		root: '.content-item',
 		elements: {
 			title: '.questions-content [class*=title-content]',
-			options: 'label[class*=group-item]'
+			options: 'label[class*=group-item],.ivu-input-wrapper input'
 		},
 		thread: thread ?? 1,
 		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
@@ -1011,7 +1012,11 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 				throw new Error('题目为空，请查看题目是否为空，或者忽略此题');
 			}
 		},
+
 		work: {
+			type: (ctx) => {
+				return getType(ctx.elements.options) as QuestionTypes;
+			},
 			async handler(type, answer, option, ctx) {
 				if (type === 'judgement' || type === 'single' || type === 'multiple') {
 					// 这里只用判断多选题是否选中，如果选中就不用再点击了，单选题是 radio，所以不用判断。
@@ -1019,7 +1024,9 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 						option?.click();
 					}
 				} else if (type === 'completion' && answer.trim()) {
-					// 尚未支持
+					if (option.tagName === 'INPUT') {
+						(option as HTMLInputElement).value = answer.trim();
+					}
 				}
 			}
 		},
