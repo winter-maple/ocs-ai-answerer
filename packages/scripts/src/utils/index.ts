@@ -2,6 +2,7 @@ import { $, AnswerMatchMode, AnswererWrapper, WorkUploadType } from '@ocsjs/core
 import { $ui, $message, $modal, MessageElement, h } from 'easy-us';
 import { $console } from '../projects/background';
 import { answerWrapperEmptyWarning } from './work';
+import { MessageAttrs } from 'easy-us/lib/interfaces/custom-window';
 
 export interface CommonWorkOptions {
 	period: number;
@@ -191,3 +192,32 @@ export function createQuestionTitleExtra(question: string) {
 	space.style.textAlign = 'right';
 	return h('div', { style: { textAlign: 'right' } }, [space]);
 }
+
+function msg(type: keyof typeof $message, attrs: MessageAttrs) {
+	$message[type](attrs);
+	if (type === 'success') {
+		type = 'info';
+	}
+	let content = '';
+	if (typeof attrs === 'string') {
+		content = attrs;
+	} else {
+		if (attrs.content instanceof HTMLElement) {
+			content = attrs.content.innerText;
+		} else if (typeof attrs.content === 'string') {
+			content = attrs.content.toString();
+		}
+	}
+	$console[type](content);
+}
+
+export const $msg = {
+	/**  输出气泡消息以及日志记录  */
+	info: (attrs: MessageAttrs) => msg('info', attrs),
+	/**  输出气泡消息以及日志记录  */
+	warn: (attrs: MessageAttrs) => msg('warn', attrs),
+	/**  输出气泡消息以及日志记录  */
+	error: (attrs: MessageAttrs) => msg('error', attrs),
+	/**  输出气泡消息以及日志记录  */
+	success: (attrs: MessageAttrs) => msg('success', attrs)
+};
