@@ -2065,6 +2065,32 @@ export const ZHSProject = Project.create({
 					start_delay_seconds: this.cfg.workDelay ?? 3
 				});
 			}
+		}),
+		'hike-homework': new Script({
+			matches: [['AI教学中心-题目作业', '/stu/answer-homework']],
+			name: '✍️ 教学空间-AI智慧课程-题目作业脚本',
+			namespace: 'zhs.hike.homework',
+			configs: {
+				notes: workNotes,
+				workDelay: {
+					label: '作业答题开始时间延迟（秒）',
+					defaultValue: 3,
+					attrs: { type: 'number', min: 1, step: 1, max: 10 }
+				}
+			},
+			async oncomplete() {
+				// 检查是否为软件环境
+				CommonProject.scripts.render.methods.pin(this);
+
+				await waitForElement('.question-item');
+
+				commonWork(this, {
+					workerProvider: (opts) => {
+						return hikeHomework(undefined, opts);
+					},
+					start_delay_seconds: this.cfg.workDelay ?? 3
+				});
+			}
 		})
 	}
 });
@@ -2976,6 +3002,108 @@ function hikeWork(
 		// 答题完成后，题库选项点击才会同步题目，否则会导致题目错乱
 		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'zhs-hike';
 	})();
+
+	return worker;
+}
+
+function hikeHomework(
+	remotePage: RemotePage | undefined,
+	{ answererWrappers, period, thread, answerSeparators, answerMatchMode }: CommonWorkOptions
+) {
+	$message.info({ content: '开始作业' });
+
+	// CommonProject.scripts.workResults.methods.init({
+	// 	questionPositionSyncHandlerType: 'zhs-hike'
+	// });
+
+	const titleTransform = (titles: (HTMLElement | undefined)[]) => {
+		return titles
+			.filter((t) => t?.innerText)
+			.map((t) => (t ? optimizationElementWithImage(t).innerText : ''))
+			.join(',');
+	};
+
+	const worker = new OCSWorker({
+		root: '.question-item',
+		elements: {
+			type: '.title-box,.combination-title',
+			title: '.qeustion-content > span, .combination-content > span',
+			options: '.option-item, .vditor-content'
+		},
+		thread: thread ?? 1,
+		answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
+		answerMatchMode: answerMatchMode,
+		/** 默认搜题方法构造器 */
+		answerer: (elements, ctx) => {
+			const title = titleTransform(elements.title);
+			if (title) {
+				return CommonProject.scripts.apps.methods.searchAnswerInCaches(title, async () => {
+					await $.sleep((period ?? 3) * 1000);
+					return defaultAnswerWrapperHandler(answererWrappers, {
+						type: ctx.type || 'unknown',
+						title,
+						options: ctx.elements.options.map((o) => o.innerText).join('\n')
+					});
+				});
+			} else {
+				throw new Error('题目为空，请查看题目是否为空，或者忽略此题');
+			}
+		},
+		work: {
+			type(ctx) {
+				const type = ctx.elements.type[0].textContent;
+				if (type?.includes('单选')) {
+					return 'single';
+				} else if (type?.includes('多选')) {
+					return 'multiple';
+				} else if (type?.includes('判断')) {
+					return 'judgement';
+				} else if (type?.includes('问答')) {
+					return 'completion';
+				} else {
+					return undefined;
+				}
+			},
+			/** 自定义处理器 */
+			async handler(type, answer, option, ctx) {
+				if (type === 'judgement' || type === 'single' || type === 'multiple') {
+					if (remotePage) {
+						await remotePage.click(option);
+					} else {
+						option.click();
+					}
+					await $.sleep(200);
+				} else if (type === 'completion') {
+					const textarea = option.querySelector('.vditor-reset');
+					if (textarea) textarea.innerHTML = `<p data-block="0">${answer.trim()}</p>`;
+				}
+			}
+		},
+
+		/**
+		 * 作业都是一题一题做的，不像其他自动答题一样可以获取全部试卷内容。
+		 * 所以只能根据自定义的状态进行搜索结果的显示。
+		 */
+		onResultsUpdate(current, _, res) {
+			if (current.result) {
+				CommonProject.scripts.workResults.methods.setResults(simplifyWorkResult(res, titleTransform));
+			}
+
+			if (current.result?.finish) {
+				CommonProject.scripts.apps.methods.addQuestionCacheFromWorkResult(
+					simplifyWorkResult([current], titleTransform)
+				);
+			}
+			CommonProject.scripts.workResults.methods.updateWorkStateByResults(res);
+		}
+	});
+
+	worker.doWork({ enable_debug: BackgroundProject.scripts.dev.cfg.enable_answerer_debug }).then(() => {
+		$message.info({ content: '作业/考试完成，请自行检查后保存或提交。', duration: 0 });
+		worker.emit('done');
+		// 答题完成后，题库选项点击才会同步题目，否则会导致题目错乱
+		CommonProject.scripts.workResults.cfg.questionPositionSyncHandlerType = 'zhs-hike';
+	});
 
 	return worker;
 }
