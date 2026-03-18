@@ -2,7 +2,7 @@ import { $, OCSWorker, defaultAnswerWrapperHandler } from '@ocsjs/core';
 import { Project, Script, $ui, $el, $message, $modal, h } from 'easy-us';
 import { volume } from '../utils/configs';
 import { waitForMedia, waitForElement } from '../utils/study';
-import { CommonWorkOptions, playMedia } from '../utils';
+import { $msg, CommonWorkOptions, playMedia } from '../utils';
 import { $console, BackgroundProject } from './background';
 import { CommonProject } from './common';
 import { commonWork, simplifyWorkResult } from '../utils/work';
@@ -74,6 +74,22 @@ export const ZJYProject = Project.create({
 				notes: {
 					defaultValue: '请点击任意章节，进入学习。'
 				}
+			}
+		}),
+		v2: new Script({
+			name: '旧版切换器',
+			matches: [['新版智慧职教', 'zjy2.icve.com.cn/study/v2/']],
+			hideInPanel: true,
+			oncomplete() {
+				$msg.info('脚本只支持旧版职教云，即将跳转到旧版职教云页面...');
+				$modal.alert({
+					title: '提示',
+					content: '脚本只支持旧版职教云，即将跳转到<b>旧版</b>职教云页面...',
+					maskCloseable: false
+				});
+				setTimeout(() => {
+					location.href = '/study/index';
+				}, 5000);
 			}
 		}),
 		dispatcher: new Script({
