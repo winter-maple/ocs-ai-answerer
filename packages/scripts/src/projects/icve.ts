@@ -1025,7 +1025,15 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 					}
 				} else if (type === 'completion' && answer.trim()) {
 					if (option.tagName === 'INPUT') {
-						(option as HTMLInputElement).value = answer.trim();
+						option.focus();
+						await $.sleep(100);
+						// @ts-ignore
+						option.value = answer.trim();
+						await $.sleep(100);
+						option.dispatchEvent(new Event('input', { bubbles: true }));
+						await $.sleep(100);
+						option.blur();
+						await $.sleep(100);
 					}
 				}
 			}
