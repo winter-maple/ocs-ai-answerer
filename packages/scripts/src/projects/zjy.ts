@@ -312,7 +312,7 @@ export const ZJYProject = Project.create({
 							$console.error(msg);
 						}
 						if (started_url === window.location.href) {
-							msg = courseInfo.name + ' 任务点结束，五秒后下一章';
+							msg = '任务点结束，五秒后下一章';
 							$message.warn('如果职教云一直卡在显示：“资源类型无法学习，请核对数据！” 请手动切换下一章。');
 							$message.info(msg);
 							$console.info(msg);
@@ -401,10 +401,9 @@ async function watchFile(pptReadPeriod: number) {
 		if (!current || !total) {
 			break;
 		}
-		if (current >= total - 1) {
+		if (current >= total) {
 			break;
 		}
-		await $.sleep(pptReadPeriod * 1000);
 		// 旧版PPT任务，新版使用 skip
 		try {
 			vue.next && vue.next();
@@ -412,6 +411,8 @@ async function watchFile(pptReadPeriod: number) {
 		try {
 			vue.skip && vue.skip();
 		} catch {}
+
+		await $.sleep(pptReadPeriod * 1000);
 	}
 }
 
