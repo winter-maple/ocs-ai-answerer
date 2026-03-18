@@ -1,3 +1,18 @@
+## 4.12.26 (2026-03-18)
+
+
+### 🔧 修复内容
+
+* 修复职教云PPT仅有2页时无法完成的BUG <a href="https://github.com/ocsjs/ocsjs/commit/018462f2746816f70439270e669756aa87240b03">></a>
+* 修复智慧职教AI测验答题时填空功能失效的BUG <a href="https://github.com/ocsjs/ocsjs/commit/d850bea91b70780d23706eea433756812c6c6016">></a>
+
+
+### ✨ 更新内容
+
+* 添加新版职教云自动跳转旧版功能 <a href="https://github.com/ocsjs/ocsjs/commit/55a9f1e198a71d8e8dd163cda4fdadfa8106c925">></a>
+
+
+
 ## 4.12.23 (2026-03-17)
 
 
