@@ -1101,23 +1101,19 @@ export const ZHSProject = Project.create({
 							}
 
 							let target_el;
-							let start = false;
-							for (let index = 0; index < cards.length; index++) {
+							const start_index = cards.findIndex((c) => c.classList.contains('active')) || 0;
+							for (let index = start_index + 1; index < cards.length; index++) {
 								const card = cards[index];
-								if (start) {
-									if (this.cfg.restudy) {
-										target_el = card;
-										break;
-									} else {
-										if (card.querySelector('.finished-icon')?.textContent?.includes('已完成')) {
-											continue;
-										}
-										target_el = card;
-										break;
+
+								if (this.cfg.restudy) {
+									target_el = card;
+									break;
+								} else {
+									if (card.querySelector('.finished-icon')?.textContent?.includes('已完成')) {
+										continue;
 									}
-								}
-								if (card.classList.contains('active')) {
-									start = true;
+									target_el = card;
+									break;
 								}
 							}
 							return target_el;
@@ -1194,25 +1190,28 @@ export const ZHSProject = Project.create({
 								if (nextJob) {
 									const nextJobTitle = nextJob.querySelector('.common-text') as HTMLElement;
 
-									/**
-									 * 链接任务点不会自动取消 active 样式，导致无法获取下一个任务点
-									 * 这里手动移除 active 样式，避免影响获取下一个任务点
-									 */
-									document
-										.querySelectorAll('[class*="card-container"].active')
-										.forEach((el) => el.classList.remove('active'));
-
 									if (include_jobs.some((job) => nextJob.querySelector('.icon-box')?.classList.contains(job))) {
 										nextJobTitle.click();
 										await doWork();
 									}
 									// 链接任务
 									else {
+										/**
+										 * 链接任务点不会自动取消 active 样式，导致无法获取下一个任务点
+										 * 这里手动移除 active 样式，避免影响获取下一个任务点
+										 */
+										document
+											.querySelectorAll('[class*="card-container"].active')
+											.forEach((el) => el.classList.remove('active'));
+
+										// 链接任务点不会自动附加 active 样式，这里手动添加
+										nextJob?.classList.add('active');
+
+										await $.sleep(1000);
+
 										const _open = $gm.unsafeWindow.open;
 										$gm.unsafeWindow.open = () => null;
 										nextJobTitle.click();
-										// 链接任务点不会自动附加 active 样式，这里手动添加
-										nextJob.querySelector('.basic-info-video-card-container')?.classList.add('active');
 
 										const msg = '链接任务完成，即将自动下一节！';
 										$message.info(msg);
