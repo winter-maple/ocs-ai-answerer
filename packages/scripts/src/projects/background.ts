@@ -935,6 +935,7 @@ export const BackgroundProject = Project.create({
 					ZHSProject.scripts['xnk-work'],
 					ZHSProject.scripts['hike-work'],
 					ZHSProject.scripts['smart-work'],
+					ZHSProject.scripts['smart-exam'],
 					ZHSProject.scripts['xnk-work'],
 					[ICourseProject.scripts.dispatcher, ICourseProject.scripts.study],
 					ICourseProject.scripts.work,
