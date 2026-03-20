@@ -290,7 +290,7 @@ export const ZJYProject = Project.create({
 						let msg = '开始学习：' + courseType + '-' + courseInfo.name;
 						$message.success(msg);
 						$console.info(msg);
-						if (['ppt', 'doc', 'pptx', 'docx', 'pdf', 'txt', 'ppt文档'].some((i) => courseType === i)) {
+						if (['ppt', 'doc', 'pptx', 'docx', 'pdf', 'txt', 'ppt文档', 'xls', 'xlsx'].some((i) => courseType === i)) {
 							await watchFile(this.cfg.pptReadPeriod);
 						} else if (['video', 'audio', 'mp4', 'mp3', 'flv', '视频'].some((i) => courseType === i)) {
 							const text = $el('.guide')?.textContent || '';
