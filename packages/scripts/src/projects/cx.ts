@@ -1274,7 +1274,8 @@ export async function study(
 		if (CXAnalyses.isInFinalTab()) {
 			if (await CXAnalyses.isStuckInBreakingMode()) {
 				return $modal.alert({
-					content: '检测到此章节重复进入, 为了避免无限重复, 请自行手动完成后手动点击下一章, 或者刷新重试。'
+					content:
+						'检测到当前课程为闯关模式（有小旗帜图标）, 但是已经重复进入多次，应该是章节测试没有完成，或者其他情况导致，请手动完成章节测试，然后手动点击下一章。'
 				});
 			}
 		}
