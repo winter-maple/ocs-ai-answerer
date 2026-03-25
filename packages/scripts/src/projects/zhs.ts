@@ -1692,10 +1692,10 @@ export const ZHSProject = Project.create({
 				const waitForLoad = () => {
 					return new Promise<void>((resolve, reject) => {
 						const check = () => {
-							if (document.querySelector('.main-container')) {
+							if (document.querySelector('.video-play')) {
 								resolve();
 							} else {
-								setTimeout(check, 1000);
+								setTimeout(check, 3000);
 							}
 						};
 						check();
@@ -1765,6 +1765,7 @@ export const ZHSProject = Project.create({
 					const set = async () => {
 						// 上面操作会导致元素刷新，这里重新获取视频
 						try {
+							await $.sleep(1000);
 							// 设置清晰度
 							await processor.switchLine(this.cfg.definition || 'line1bq');
 							await $.sleep(1000);
