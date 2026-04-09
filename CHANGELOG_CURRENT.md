@@ -1,9 +1,14 @@
-## [4.12.30](https://github.com/ocsjs/ocsjs/compare/4.12.29...4.12.30) (2026-03-20)
+## [4.12.32](https://github.com/ocsjs/ocsjs/compare/4.12.30...4.12.32) (2026-04-09)
+
+
+### Bug Fixes
+
+* **script:** 尝试修复智慧树AI学伴课程过一段时间才会播放的BUG ([7c56dc9](https://github.com/ocsjs/ocsjs/commit/7c56dc925284dd8ac5237da0a6fd9b7dae643264))
 
 
 ### Performance Improvements
 
-* **script:** 添加智慧树新智慧形态考试菜单进入菜单栏 ([d9d362b](https://github.com/ocsjs/ocsjs/commit/d9d362bdc5d9bbd3de04019dede94c856d68ac77))
+* **script:** 优化超星闯关模式重复提示 ([fd83815](https://github.com/ocsjs/ocsjs/commit/fd83815150eced1e8caf8d11493ab9841187c49c))
 
 
 
