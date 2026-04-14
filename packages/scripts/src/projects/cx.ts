@@ -324,7 +324,8 @@ export const CXProject = Project.create({
 						}
 					}) || 0;
 			},
-			async oncomplete() {
+			// 这里不使用 oncompelete ，如果某个资源一直在加载中，就会导致 oncomplete 一直无法触发，导致脚本无法运行，所以改为 onactive 只要匹配上就会触发
+			async onactive() {
 				/** iframe 跨域问题， 必须在 iframe 中执行 ， 所以脱离学习脚本运行。 */
 				if (/\/readsvr\/book\/mooc/.test(location.href)) {
 					$console.log('正在完成书籍/PPT...');
