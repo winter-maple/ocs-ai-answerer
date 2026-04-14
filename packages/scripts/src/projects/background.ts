@@ -925,6 +925,7 @@ export const BackgroundProject = Project.create({
 				const currentStudyScript = [
 					[CXProject.scripts.studyDispatcher, CXProject.scripts.study],
 					CXProject.scripts.work,
+					CXProject.scripts.autoRead,
 					ZHSProject.scripts['gxk-study'],
 					ZHSProject.scripts['xnk-study'],
 					ZHSProject.scripts.hike,

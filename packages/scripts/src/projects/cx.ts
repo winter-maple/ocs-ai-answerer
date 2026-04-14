@@ -387,7 +387,7 @@ export const CXProject = Project.create({
 			namespace: 'cx.new.auto-read',
 			configs: {
 				notes: {
-					defaultValue: $ui.notes(['阅读任务次日才会统计阅读时长']).outerHTML
+					defaultValue: $ui.notes(['点击任意章节开始自动阅读', '阅读任务次日才会统计阅读时长']).outerHTML
 				},
 				restartAfterFinish: {
 					label: '无限阅读',
@@ -396,6 +396,10 @@ export const CXProject = Project.create({
 				}
 			},
 			oncomplete() {
+				// 置顶
+				CommonProject.scripts.render.methods.pin(this);
+				$message.info('请手动点击任意章节开始自动阅读');
+
 				// 自动进入章节功能，如果不是阅读页面则自动进入
 				if (location.href.includes('/ztnodedetailcontroller/visitnodedetail') === false) {
 					startAtFirst();
