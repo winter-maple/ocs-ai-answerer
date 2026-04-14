@@ -60,6 +60,9 @@ const state = {
 	}
 };
 
+// @ts-ignore
+let top: Window = globalThis.top;
+
 type VideoQuizStrategy = 'random' | 'ignore';
 
 type Attachment = {
@@ -128,14 +131,13 @@ export const CXProject = Project.create({
 				 * iframe : mooc1.xxx.zjelib.cn/.../mycourse/studentstudy/...  <iframe src=....>
 				 * 导致top指向zjelib跨域无法访问，所以这里尝试寻找真正的top窗口对象，只有域名中包含 /mycourse/studentstudy 才是可操作的 top
 				 */
-				let top = window.top;
 				try {
-					let _self = $gm.unsafeWindow;
+					let _self = self;
 					let _try_count = 10;
 					while (_self.parent !== undefined && _try_count > 0) {
 						if (_self.location.href.includes('/mycourse/studentstudy')) {
 							top = _self;
-							console.log('[ocsjs] top change to :' + top.location.href);
+							console.log('[ocsjs] top change to ' + top.location.href);
 							break;
 						} else {
 							_try_count--;
@@ -146,7 +148,8 @@ export const CXProject = Project.create({
 				} catch (e) {
 					console.warn('[ocsjs] fail of find top');
 					console.warn(e);
-					top = window.top;
+					// @ts-ignore
+					top = globalThis.top;
 				}
 			}
 		}),
