@@ -1228,10 +1228,12 @@ export async function study(
 
 	let attachmentCount: number = $gm.unsafeWindow.attachments?.length || 0;
 
+	let wait_timeout = 3 + attachmentCount * 2;
+
 	/** 考虑到网速级慢的同学，所以10秒后如果还没有任务点才停止 */
 	setTimeout(() => {
 		searching = false;
-	}, 10 * 1000);
+	}, Math.min(wait_timeout, 10) * 1000);
 
 	/**
 	 * 递归运行任务点，一旦有新的任务点被检测到直接开始
