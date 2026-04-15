@@ -382,7 +382,8 @@ export const CXProject = Project.create({
 			matches: [
 				['阅读页面', '/ztnodedetailcontroller/visitnodedetail'],
 				['课程目录', /chaoxing.com\/course\/\d+\.html/],
-				['课程目录', /chaoxing.com\/mooc-ans\/course\/\d+\.html/]
+				['课程目录', /chaoxing.com\/mooc-ans\/course\/\d+\.html/],
+				['积分课阅读课程目录', '/mooc-ans/zt/portal']
 			],
 			namespace: 'cx.new.auto-read',
 			configs: {
