@@ -31,6 +31,9 @@ import { $console, BackgroundProject } from './background';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { waitForMedia } from '../utils/study';
 
+// @ts-ignore
+let top: Window = globalThis.top;
+
 try {
 	/**
 	 *
@@ -59,9 +62,6 @@ const state = {
 		playbackRateWarningListenerId: 0
 	}
 };
-
-// @ts-ignore
-let top: Window = globalThis.top;
 
 type VideoQuizStrategy = 'random' | 'ignore';
 
@@ -1237,7 +1237,7 @@ export async function study(
 
 	let attachmentCount: number = $gm.unsafeWindow.attachments?.length || 0;
 
-	let wait_timeout = 3 + attachmentCount * 2;
+	const wait_timeout = 3 + attachmentCount * 2;
 
 	/** 考虑到网速级慢的同学，所以10秒后如果还没有任务点才停止 */
 	setTimeout(() => {
