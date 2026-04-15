@@ -551,6 +551,51 @@ class Hike extends StudyVideoH5 implements ZHSProcessor {
 	}
 }
 
+class HikeV2 extends StudyVideoH5 implements ZHSProcessor {
+	getCourseName() {
+		return document.querySelector('.header-title-wrap')?.textContent || '无名称';
+	}
+
+	getChapterName(): string {
+		return document.querySelector('.el-tree-node.is-current .file-name')?.textContent || '未知章节';
+	}
+
+	hasJob() {
+		return document.querySelectorAll('.el-tree-node')?.length > 0;
+	}
+
+	getNext(opts: { next: boolean; restudy: boolean }) {
+		let jobs = Array.from(document.querySelectorAll<HTMLElement>('.el-tree-node')).filter(
+			(e) => e.querySelector('.el-tree-node__children')?.children.length === 0
+		);
+		console.log(jobs);
+		// 如果不是复习模式，则排除掉已经完成的任务
+		if (!opts.restudy) {
+			jobs = jobs.filter((el) => {
+				if (el.querySelector('label.success')) {
+					return false;
+				}
+				return true;
+			});
+		}
+
+		for (let i = 0; i < jobs.length; i++) {
+			const item = jobs[i];
+			if (item.classList.contains('.is-current')) {
+				return jobs[i + (opts.next ? 1 : 0)];
+			}
+		}
+		return jobs[0];
+	}
+
+	hideDialog() {
+		/** 隐藏通知弹窗 */
+		$$el('.el-overlay,.el-dialog').forEach((dialog) => {
+			dialog.style.display = 'none';
+		});
+	}
+}
+
 /** 工程导出 */
 export const ZHSProject = Project.create({
 	name: '知到智慧树',
@@ -2069,6 +2114,184 @@ export const ZHSProject = Project.create({
 				};
 
 				doWork();
+			}
+		}),
+		hike_v2: new Script({
+			name: '🖥️ 教学空间-AI智慧课程-学习脚本',
+			matches: [
+				['学习首页', /polymas.com\/stu-hike\/agent-course-full\/.*\/stu\/(course-home|study)/],
+				['学习页面', '/stu/study/resource-detail']
+			],
+			namespace: 'zhs.hike_v2.study',
+			configs: {
+				notes: {
+					defaultValue: $ui.notes(['请手动进入视频、作业、考试页面，脚本会自动运行。']).outerHTML
+				},
+				restudy: restudy,
+				reloadWhenError: {
+					label: '视频黑屏时自动刷新',
+					attrs: { type: 'checkbox', title: '当视频出现加载失败，或者黑屏等异常时，自动刷新页面3次尝试修复' },
+					defaultValue: true
+				},
+				volume: volume
+			},
+			oncomplete(...args) {
+				this.onhistorychange?.('push', ...args);
+			},
+			async onhistorychange(type) {
+				if (type !== 'push') {
+					return;
+				}
+
+				// 置顶当前脚本
+				if (!location.href.includes('stu/study/resource-detail')) {
+					$message.info({ content: '请手动进入视频、作业、考试页面，脚本会自动运行。', duration: 60 });
+					return;
+				}
+				const processor = new HikeV2();
+				// 监听音量
+				this.onConfigChange('volume', (curr) => {
+					state.study.currentMedia && (state.study.currentMedia.volume = curr);
+				});
+
+				const next = async () => {
+					// 打开章节列表
+					document.querySelector('.drawer-panel')?.classList.add('active');
+
+					const nextJob = processor.getNext({ next: true, restudy: this.cfg.restudy });
+					if (nextJob) {
+						nextJob.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						await $.sleep(200);
+						nextJob.click();
+						await $.sleep(3000);
+						doJob();
+					} else {
+						finishAlert();
+					}
+				};
+				const waitForLoad = () => {
+					return new Promise<void>((resolve, reject) => {
+						const check = () => {
+							if (processor.hasJob()) {
+								resolve();
+							} else {
+								setTimeout(check, 1000);
+							}
+						};
+						check();
+					});
+				};
+
+				await waitForLoad();
+				await $.sleep(3000);
+
+				$message.success({ content: '即将开始自动学习！' });
+
+				const reload = async (e: any) => {
+					$console.error(e);
+					if (this.cfg.reloadWhenError) {
+						const msg = '视频加载失败，即将刷新页面。';
+						const reload_count = await $store.getTab('reload-count');
+						if (reload_count && reload_count > 3) {
+							const msg = '视频加载失败/黑屏导致重新加载页面次数超过3次，请尝试关闭页面重新打开，或者检查网络连接！';
+							await $store.setTab('reload-count', 0);
+							$message.error({ content: msg, duration: 0 });
+							$console.log(msg);
+							CommonProject.scripts.settings.methods.notificationBySetting(msg, {
+								duration: 0,
+								extraTitle: '知道智慧树学习脚本'
+							});
+							return;
+						}
+						await $store.setTab('reload-count', (reload_count ?? 0) + 1);
+						$message.error(msg);
+						$console.log(msg);
+						setTimeout(() => {
+							location.reload();
+						}, 3000);
+					} else {
+						const msg = '视频加载失败，即将跳过。';
+						$message.error(msg);
+						$console.log(msg);
+						next();
+					}
+				};
+
+				const doJob = async () => {
+					await waitForCaptcha();
+
+					if (!document.querySelector('.video-js')) {
+						$message.warn('当前章节不支持学习，即将跳转下一节');
+						await $.sleep(3000);
+						await next();
+						return;
+					}
+
+					const set = async () => {
+						// 上面操作会导致元素刷新，这里重新获取视频
+						try {
+							await $.sleep(1000);
+							const media = await waitForMedia({ timeout: 5 * 1000, filter: (m) => m.src.length !== 0 });
+							await $.sleep(1000);
+							state.study.currentMedia = media;
+							if (media) {
+								// 如果已经播放完了，则重置视频进度
+								media.currentTime = 1;
+								// 音量
+								media.volume = this.cfg.volume;
+							}
+							return state.study.currentMedia;
+						} catch (e) {
+							reload(e);
+						}
+					};
+
+					$message.info('开始播放');
+					await waitForCaptcha();
+					const video = await set();
+					if (!video) {
+						return;
+					}
+					const video_src = video.src;
+
+					// 如果视频元素无法访问，证明已经切换了视频
+					const videoCheckInterval = setInterval(async () => {
+						if (!video?.isConnected || video.src !== video_src) {
+							clearInterval(videoCheckInterval);
+							$message.info({ content: '检测到视频切换中...' });
+							/**
+							 * 元素无法访问证明用户切换视频了
+							 * 所以不往下播放视频，而是重新播放用户当前选中的视频
+							 */
+							doJob();
+						}
+					}, 3000);
+
+					playMedia(() => video?.play()).then(() => {
+						const cn = processor.getChapterName();
+						$message.info({ content: '正在学习：' + cn });
+						$console.log('正在学习：' + cn);
+					});
+
+					video.onpause = async () => {
+						if (!video?.isConnected) return;
+						if (!video?.ended && state.study.stop === false) {
+							await $.sleep(1000);
+							video?.play();
+						}
+					};
+
+					video.onended = async () => {
+						if (!video?.isConnected) return;
+						$message.info('即将自动跳转下一节');
+						$console.info('即将自动跳转下一节');
+						clearInterval(videoCheckInterval);
+						await $.sleep(3000);
+						await next();
+					};
+				};
+
+				doJob();
 			}
 		}),
 		'hike-work': new Script({
