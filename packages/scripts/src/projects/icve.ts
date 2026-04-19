@@ -950,12 +950,24 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 
 	console.log({ answererWrappers, period, thread });
 
+	/**
+	 * 将元素中的 <img> 替换为其 src 链接，避免 innerText 丢失图片信息
+	 */
+	const replaceImgWithSrc = (el: HTMLElement) => {
+		const clone = el.cloneNode(true) as HTMLElement;
+		clone.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
+			const textNode = document.createTextNode(img.src);
+			img.replaceWith(textNode);
+		});
+		return clone.innerText.trim();
+	};
+
 	const titleTransform = (titles: (HTMLElement | undefined)[]) => {
 		return titles
 			.filter((t) => t?.innerText)
 			.map((t) => {
 				if (t) {
-					return t.innerText.trim();
+					return replaceImgWithSrc(t);
 				}
 				return '';
 			})
@@ -1005,7 +1017,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 					return defaultAnswerWrapperHandler(answererWrappers, {
 						type: getType(ctx.elements.options) || 'unknown',
 						title,
-						options: ctx.elements.options.map((o) => o.innerText).join('\n')
+						options: ctx.elements.options.map((o) => replaceImgWithSrc(o)).join('\n')
 					});
 				});
 			} else {
