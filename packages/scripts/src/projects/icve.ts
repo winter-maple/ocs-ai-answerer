@@ -994,7 +994,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 	const worker = new OCSWorker({
 		root: '.content-item',
 		elements: {
-			title: '.single-title-content, .questions-content [class*=title-content]',
+			title: '.questions-content [class*=title-content]',
 			options: 'label[class*=group-item],.ivu-input-wrapper input'
 		},
 		thread: thread ?? 1,
