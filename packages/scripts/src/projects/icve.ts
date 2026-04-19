@@ -8,6 +8,7 @@ import {
 	QuestionTypes
 } from '@ocsjs/core';
 import { $gm, cors, $message, $$el, $modal, $el, Project, Script, $ui, h } from 'easy-us';
+import { optimizationElementWithImage } from '../utils/work';
 import { playbackRate, restudy, volume } from '../utils/configs';
 import { CommonWorkOptions, playMedia } from '../utils';
 import { CommonProject } from './common';
@@ -950,24 +951,12 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 
 	console.log({ answererWrappers, period, thread });
 
-	/**
-	 * 将元素中的 <img> 替换为其 src 链接，避免 innerText 丢失图片信息
-	 */
-	const replaceImgWithSrc = (el: HTMLElement) => {
-		const clone = el.cloneNode(true) as HTMLElement;
-		clone.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
-			const textNode = document.createTextNode(img.src);
-			img.replaceWith(textNode);
-		});
-		return clone.innerText.trim();
-	};
-
 	const titleTransform = (titles: (HTMLElement | undefined)[]) => {
 		return titles
 			.filter((t) => t?.innerText)
 			.map((t) => {
 				if (t) {
-					return replaceImgWithSrc(t);
+					return optimizationElementWithImage(t, true).innerText.trim();
 				}
 				return '';
 			})
@@ -1002,7 +991,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 	const worker = new OCSWorker({
 		root: '.content-item',
 		elements: {
-			title: '.questions-content [class*=title-content]',
+			title: '.single-title-content, .questions-content [class*=title-content]',
 			options: 'label[class*=group-item],.ivu-input-wrapper input'
 		},
 		thread: thread ?? 1,
@@ -1017,7 +1006,7 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 					return defaultAnswerWrapperHandler(answererWrappers, {
 						type: getType(ctx.elements.options) || 'unknown',
 						title,
-						options: ctx.elements.options.map((o) => replaceImgWithSrc(o)).join('\n')
+						options: ctx.elements.options.map((o) => optimizationElementWithImage(o, true).innerText).join('\n')
 					});
 				});
 			} else {
@@ -1052,6 +1041,8 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 		},
 		onElementSearched(elements, root) {
 			console.log('elements', elements);
+			// 对选项元素进行图片优化，使默认 resolver 的 innerText 匹配也能获取到图片链接
+			elements.options?.forEach((option) => optimizationElementWithImage(option));
 		},
 
 		/**
