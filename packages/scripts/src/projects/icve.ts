@@ -953,10 +953,13 @@ function aiWork({ answererWrappers, period, thread, answerSeparators, answerMatc
 
 	const titleTransform = (titles: (HTMLElement | undefined)[]) => {
 		return titles
-			.filter((t) => t?.innerText)
+			.filter((t) => t?.innerText || t?.querySelector('img'))
 			.map((t) => {
 				if (t) {
-					return optimizationElementWithImage(t, true).innerText.trim();
+					const el = optimizationElementWithImage(t, true);
+					// 使用 textContent 而非 innerText，因为 innerText 受 CSS 影响，
+					// fontSize: 0px 的隐藏 span 中的图片 URL 不会被 innerText 获取
+					return (el.textContent || '').replace(/\s+/g, ' ').trim() || '';
 				}
 				return '';
 			})
