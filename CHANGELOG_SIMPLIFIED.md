@@ -1,3 +1,17 @@
+## 4.13.2 (2026-04-22)
+
+
+### 🔧 修复内容
+
+* 修复智慧树26年上半年studywisdomh5复习模式错误的问题 <a href="https://github.com/ocsjs/ocsjs/commit/2e82a0a8ea4cca4265ba592336a2762bf156ec08">></a>
+
+
+### ✨ 更新内容
+
+* 兼容雨课堂AI学伴自动学习 <a href="https://github.com/ocsjs/ocsjs/commit/c96f4db7d949df6f3fc983a6ae4783ece9b19783">></a>
+
+
+
 ## 4.12.39 (2026-04-20)
 
 

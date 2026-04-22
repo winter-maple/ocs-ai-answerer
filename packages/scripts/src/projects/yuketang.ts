@@ -2,7 +2,7 @@ import { $, $elements, Project, Script, $message, $modal, $el } from 'easy-us';
 import { $msg, playMedia } from '../utils';
 import { request } from '@ocsjs/core';
 import { restudy, volume } from '../utils/configs';
-import { waitForElement, waitForMedia } from '../utils/study';
+import { waitForElement } from '../utils/study';
 import { CommonProject } from './common';
 
 const state = {
@@ -104,7 +104,7 @@ export const YKTProject = Project.create({
 					if (!this.cfg.restudy) {
 						jobs = jobs.splice(active_index);
 						jobs = jobs.filter((el) => !el.querySelector('.icon-yuanquangou'));
-						jobs = jobs.filter((el) => !el.querySelector('.leaf-item-tag')?.textContent.includes('自测'));
+						jobs = jobs.filter((el) => !(el.querySelector('.leaf-item-tag')?.textContent || '').includes('自测'));
 					}
 					const new_active_index = jobs.findIndex((job) => job.classList.contains('is-active'));
 					return jobs[new_active_index + 1];
@@ -199,37 +199,33 @@ async function loadFontMapping() {
  * @returns
  */
 async function watch(options: { volume: number; playbackRate: number }) {
-	return new Promise<void>(async (resolve, reject) => {
-		const set = async () => {
-			try {
-				// 上面操作会导致元素刷新，这里重新获取视频
-				await $.sleep(1000);
-				const media = (await waitForElement('.detail-container video', {
-					timeout_seconds: 10 * 1000
-				})) as HTMLMediaElement;
-				console.log('media', media);
-				await $.sleep(1000);
-				state.study.currentMedia = media;
+	const set = async () => {
+		// 上面操作会导致元素刷新，这里重新获取视频
+		await $.sleep(1000);
+		const media = (await waitForElement('.detail-container video', {
+			timeout_seconds: 10 * 1000
+		})) as HTMLMediaElement;
+		console.log('media', media);
+		await $.sleep(1000);
+		state.study.currentMedia = media;
 
-				if (media) {
-					// 如果已经播放完了，则重置视频进度
-					media.currentTime = 1;
-					// 音量
-					media.volume = options.volume;
-					media.playbackRate = options.playbackRate;
-				}
-			} catch (e) {
-				return reject(e);
-			}
-			return state.study.currentMedia;
-		};
-
-		$message.info('开始播放');
-		const video = await set();
-		if (!video) {
-			return reject(new Error('video not found!'));
+		if (media) {
+			// 如果已经播放完了，则重置视频进度
+			media.currentTime = 1;
+			// 音量
+			media.volume = options.volume;
+			media.playbackRate = options.playbackRate;
 		}
+		return state.study.currentMedia;
+	};
+	$message.info('开始播放');
+	const video = await set();
 
+	if (!video) {
+		throw new Error('video not found!');
+	}
+
+	return new Promise<void>((resolve, reject) => {
 		const videoCheckInterval = setInterval(async () => {
 			// 如果视频元素无法访问，证明已经切换了视频
 			if (video?.isConnected === false) {
