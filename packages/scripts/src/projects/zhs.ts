@@ -319,7 +319,7 @@ class StudyPlusH5 extends StudyVideoH5 implements ZHSProcessor {
 		// 如果不是复习模式，则排除掉已经完成的任务
 		if (!opts.restudy) {
 			videoItems = videoItems.filter((el) => {
-				if (el.querySelector('.child-check')) {
+				if (el.parentElement?.querySelector('.finish-icon')) {
 					return false;
 				}
 				return true;
