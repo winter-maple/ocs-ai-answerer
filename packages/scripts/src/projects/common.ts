@@ -1791,6 +1791,10 @@ const createGuide = () => {
 	const changeLog = h('button', { className: 'base-style-button-secondary' }, '📄更新日志');
 	changeLog.onclick = () => CommonProject.scripts.apps.methods.showChangelog();
 
+	const closeGuide = h('button', { className: 'base-style-button-secondary' }, '📄如何关闭脚本？');
+	closeGuide.onclick = () =>
+		window.open('https://docs.ocsjs.com/docs/script#%E5%85%B3%E9%97%AD%E8%84%9A%E6%9C%AC%E6%95%99%E7%A8%8B', '_blank');
+
 	const cardStyle: Partial<CSSStyleDeclaration> = {
 		border: '1px solid #eee',
 		borderRadius: '4px',
@@ -1821,7 +1825,8 @@ const createGuide = () => {
 			h('div', { style: { marginBottom: '8px', fontWeight: 'bold' } }, '🌐快捷访问：'),
 			gotoHome,
 			contactUs,
-			changeLog
+			changeLog,
+			closeGuide
 		])
 	]);
 };
