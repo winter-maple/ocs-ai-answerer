@@ -351,6 +351,18 @@ export const CommonProject = Project.create({
 															return;
 														}
 
+														// 判断题库是否超过限制（10个），如果超过则提示
+														if (awsResult.length > 10) {
+															$modal.alert({
+																content: h('div', [
+																	'题库配置过多可能会导致答题效率降低，建议不超过10个题库，目前解析到' +
+																		awsResult.length +
+																		'个题库，请删除一些不必要的题库后重新配置！'
+																])
+															});
+															return;
+														}
+
 														CommonProject.scripts.settings.cfg.answererWrappers = awsResult;
 														this.value = '当前有' + awsResult.length + '个可用题库';
 														$modal.confirm({
