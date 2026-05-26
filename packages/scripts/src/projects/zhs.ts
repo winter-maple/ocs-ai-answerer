@@ -9,7 +9,7 @@ import {
 	removeRedundantWords,
 	simplifyWorkResult
 } from '../utils/work';
-import { $msg, CommonWorkOptions, playMedia } from '../utils';
+import { CommonWorkOptions, playMedia } from '../utils';
 import { $console, BackgroundProject } from './background';
 import { waitForMedia, waitForElement } from '../utils/study';
 import { $playwright } from '../utils/app';
