@@ -748,18 +748,33 @@ export const CommonProject = Project.create({
 						{ className: 'base-style-button', disabled: this.cfg.answererWrappers.length === 0 },
 						'🔄️刷新题库状态'
 					);
+					const errorSolveGuide = h(
+						'button',
+						{
+							className: 'base-style-button ',
+							style: { display: 'none' },
+							onclick() {
+								window.open('https://docs.ocsjs.com/docs/other/FQA#tk-error', '_blank');
+							}
+						},
+						'📖连接失败如何解决？'
+					);
 					refresh.onclick = () => {
 						updateState();
 					};
 					const tableContainer = h('div');
 					refresh.style.display = 'none';
 					tableContainer.style.display = 'none';
-					panel.body.append(h('div', { style: { display: 'flex' } }, [testNotification, refresh]), tableContainer);
+					panel.body.append(
+						h('div', { style: { display: 'flex' } }, [testNotification, refresh, errorSolveGuide]),
+						tableContainer
+					);
 
 					// 更新题库状态
 					const updateState = async () => {
 						// 清空元素
 						tableContainer.replaceChildren();
+						errorSolveGuide.style.display = 'none';
 						let loadedCount = 0;
 
 						if (this.cfg.answererWrappers.length) {
@@ -800,6 +815,10 @@ export const CommonProject = Project.create({
 									success = true;
 								} else {
 									success = false;
+								}
+
+								if (error) {
+									errorSolveGuide.style.display = 'block';
 								}
 
 								const body = h('tbody');
