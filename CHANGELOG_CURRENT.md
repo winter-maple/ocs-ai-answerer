@@ -1,4 +1,9 @@
-## [4.13.13](https://github.com/ocsjs/ocsjs/compare/4.13.11...4.13.13) (2026-05-29)
+## [4.13.14](https://github.com/ocsjs/ocsjs/compare/4.13.11...4.13.14) (2026-05-29)
+
+
+### Bug Fixes
+
+* **build:** 修复 Workflow 无法读取本地更新日志的BUG ([5054129](https://github.com/ocsjs/ocsjs/commit/50541299342fa625ff370987f949944b7164e55a))
 
 
 ### Features
