@@ -296,7 +296,7 @@ export const ZJYProject = Project.create({
 						$console.info(msg);
 						if (['ppt', 'doc', 'pptx', 'docx', 'pdf', 'txt', 'ppt文档', 'xls', 'xlsx'].some((i) => courseType === i)) {
 							await watchFile(this.cfg.pptReadPeriod);
-						} else if (['video', 'audio', 'mp4', 'mp3', 'flv', '视频'].some((i) => courseType === i)) {
+						} else if (['video', 'audio', 'mp4', 'mp3', 'flv', 'wav', '视频'].some((i) => courseType === i)) {
 							const text = $el('.guide')?.textContent || '';
 							msg = `任务点 ${courseInfo.name}，不支持播放。`;
 							if (text.includes('很抱歉，您的浏览器不支持播放此类文件') || text.includes('此视频暂无法播放')) {
