@@ -1205,24 +1205,8 @@ export const CommonProject = Project.create({
 						/** 渲染结果列表 */
 						const createResult = (result: SimplifyWorkResult | undefined) => {
 							if (result) {
-								let info: HTMLElement | null = null;
-
-								if (result.requested === false && result.resolved === false) {
-									info = h('div', { className: 'result-info unresolved' }, '等待搜索中... 🔍');
-								} else if (result.error) {
-									info = h('div', { className: 'result-info error' }, '❌ ' + result.error);
-								} else if (result.searchInfos.length === 0) {
-									info = h('div', { className: 'result-info no-answer' }, '❌ 题库没搜索到答案');
-								} else {
-									info = result.finish
-										? null
-										: result.resolved === false
-										? h('div', { className: 'result-info unresolved' }, '等待顺序答题中... ⏱️')
-										: h('div', { className: 'result-info error' }, '❌ 此题未完成, 可能是没有匹配的选项。');
-								}
-
 								return h('div', [
-									h('div', { className: 'alert-info-wrapper' }, [info ?? h('div')]),
+									createSearchResultAlertElement(result),
 									h(SearchInfosElement, {
 										infos: result.searchInfos,
 										question: result.question,
@@ -1326,7 +1310,8 @@ export const CommonProject = Project.create({
 												(res) => [res.question, res.answer, res.extra_data] as [string, string, object]
 											),
 											homepage: info.homepage,
-											name: info.name
+											name: info.name,
+											error: info.error
 										})),
 										question: value
 									})
@@ -1849,3 +1834,34 @@ const createGuide = () => {
 		])
 	]);
 };
+
+function createSearchResultAlertElement(result: SimplifyWorkResult) {
+	let info: HTMLElement | null = null;
+	let err = result.error || result.searchInfos.find((i) => i.error)?.error;
+	if (result.requested === false && result.resolved === false) {
+		info = h('div', { className: 'result-info unresolved' }, '等待搜索中... 🔍');
+	} else if (err) {
+		let href = '#';
+		if (err?.includes('is not valid JSON')) {
+			err = '题库返回数据错误';
+			href = 'https://docs.ocsjs.com/docs/other/FQA#tk-data-error';
+		} else if (err?.includes('题库连接失败')) {
+			err = '题库连接失败';
+			href = 'https://docs.ocsjs.com/docs/other/FQA#tk-error';
+		}
+		info = h('div', { className: 'result-info error' }, [
+			'❌ ' + err,
+			h('a', { href, target: '_blank', style: { marginLeft: '3px' } }, '解决方法?')
+		]);
+	} else if (result.searchInfos.length === 0) {
+		info = h('div', { className: 'result-info no-answer' }, '❌ 题库没搜索到答案');
+	} else {
+		info = result.finish
+			? null
+			: result.resolved === false
+			? h('div', { className: 'result-info unresolved' }, '等待顺序答题中... ⏱️')
+			: h('div', { className: 'result-info error' }, '❌ 此题未完成, 可能是没有匹配的选项。');
+	}
+
+	return h('div', { className: 'alert-info-wrapper' }, [info ?? h('div')]);
+}
