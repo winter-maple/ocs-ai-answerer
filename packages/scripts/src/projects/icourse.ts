@@ -6,7 +6,7 @@ import { commonWork, optimizationElementWithImage, removeRedundantWords, simplif
 import { $console, BackgroundProject } from './background';
 import { $playwright } from '../utils/app';
 import { waitForElement, waitForMedia, waitFor } from '../utils/study';
-import { playbackRate, volume, workNotes } from '../utils/configs';
+import { playbackRate, volume } from '../utils/configs';
 import { $render } from '../utils/render';
 
 const $msg_and_log = (type: 'info' | 'warn' | 'error', msg: string) => {

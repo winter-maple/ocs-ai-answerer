@@ -1945,7 +1945,7 @@ const JobRunner = {
 
 					for (const answers of searchInfos.map((info) => info.results.map((res) => res.answer))) {
 						for (const ans of answers) {
-							let splited_ans = splitAnswer(ans);
+							const splited_ans = splitAnswer(ans);
 							if (splited_ans.length !== 0 && elements.lineSelectBox.length === splited_ans.length) {
 								//  选择答案
 								for (let index = 0; index < elements.lineSelectBox.length; index++) {

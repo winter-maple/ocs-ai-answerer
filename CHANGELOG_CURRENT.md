@@ -1,9 +1,16 @@
-## [4.13.16](https://github.com/ocsjs/ocsjs/compare/4.13.15...4.13.16) (2026-05-29)
+## [4.13.19](https://github.com/ocsjs/ocsjs/compare/4.13.16...4.13.19) (2026-06-04)
 
 
 ### Bug Fixes
 
-* **script:** 兼容职教云资源库WAV音频任务点播放 ([76a1e56](https://github.com/ocsjs/ocsjs/commit/76a1e565b20e2b36a0aebd97c13c760dff0c7fa9))
+* **script:** 兼容超星新版连线题 ([f9ebaa5](https://github.com/ocsjs/ocsjs/commit/f9ebaa58c7f90a662d474d17d7f49bee57804621))
+* **script:** 兼容中国大学MOOC网络并发的问题，调整答题速度，修复填空题无法正常填写的问题 ([ad03090](https://github.com/ocsjs/ocsjs/commit/ad030907e8b0ea73e8b4ce844a37c42a2aae68f2))
+
+
+### Performance Improvements
+
+* aPI Update ([849cde2](https://github.com/ocsjs/ocsjs/commit/849cde2b6c24814cde91d6f462add53d772c9244))
+* **script:** 添加搜索结果界面题库连接失败的解决提示 ([e42b682](https://github.com/ocsjs/ocsjs/commit/e42b68281762e539a35157831dff602c65633a61))
 
 
 

@@ -1,3 +1,19 @@
+## 4.13.19 (2026-06-04)
+
+
+### 🔧 修复内容
+
+* 兼容超星新版连线题 <a href="https://github.com/ocsjs/ocsjs/commit/f9ebaa58c7f90a662d474d17d7f49bee57804621">></a>
+* 兼容中国大学MOOC网络并发的问题，调整答题速度，修复填空题无法正常填写的问题 <a href="https://github.com/ocsjs/ocsjs/commit/ad030907e8b0ea73e8b4ce844a37c42a2aae68f2">></a>
+
+
+### ⚡ 优化提升
+
+* aPI Update <a href="https://github.com/ocsjs/ocsjs/commit/849cde2b6c24814cde91d6f462add53d772c9244">></a>
+* 添加搜索结果界面题库连接失败的解决提示 <a href="https://github.com/ocsjs/ocsjs/commit/e42b68281762e539a35157831dff602c65633a61">></a>
+
+
+
 ## 4.13.16 (2026-05-29)
 
 
