@@ -3,12 +3,18 @@ import { SearchInformation } from '../answer-wrapper/interface';
 export type ElementResolver<R> = (root: HTMLElement | Document) => R;
 export type RawElements = Record<
 	string | symbol,
-	string | ElementResolver<HTMLElement[]> | ElementResolver<HTMLElement>[]
+	string | ElementResolver<(HTMLElement | null | undefined)[]> | ElementResolver<HTMLElement | null | undefined>[]
 > & {
 	/** 题目元素选择器 */
-	title?: string | ElementResolver<HTMLElement[]> | ElementResolver<HTMLElement>[];
+	title?:
+		| string
+		| ElementResolver<(HTMLElement | null | undefined)[]>
+		| ElementResolver<HTMLElement | null | undefined>[];
 	/** 题目选项的元素选择器 */
-	options?: string | ElementResolver<HTMLElement[]> | ElementResolver<HTMLElement>[];
+	options?:
+		| string
+		| ElementResolver<(HTMLElement | null | undefined)[]>
+		| ElementResolver<HTMLElement | null | undefined>[];
 };
 
 export type SearchedElements<E, T> = Record<keyof E, T> & {
