@@ -1847,7 +1847,13 @@ const JobRunner = {
 		const worker = new OCSWorker({
 			root: TiMu,
 			elements: {
-				title: '.Zy_TItle .clearfix',
+				title: [
+					(root) => $el('.Zy_TItle .clearfix', root),
+					// /** 连线题第一组 */
+					(root) => $el('.firstUlList', root),
+					// /** 连线题第二组 */
+					(root) => $el('.secondUlList', root)
+				],
 				/**
 				 * 兼容各种选项
 				 *
@@ -1857,8 +1863,7 @@ const JobRunner = {
 				 */
 				options: 'ul li .after,ul li textarea,ul textarea,ul li label:not(.before)',
 				type: 'input[id^="answertype"]',
-				lineAnswerInput: '.line_answer input[name^=answer]',
-				lineSelectBox: '.line_answer_ct .selectBox '
+				lineSelectBox: '.thirdUlList .dept_select'
 			},
 			thread: thread ?? 1,
 			answerSeparators: answerSeparators.split(',').map((s) => s.trim()),
@@ -1929,22 +1934,31 @@ const JobRunner = {
 				}
 				// 连线题自定义处理
 				else if (type && type === 'line') {
-					for (const answers of searchInfos.map((info) => info.results.map((res) => res.answer))) {
-						let ans = answers;
-						if (ans.length === 1) {
-							ans = splitAnswer(ans[0]);
+					const select = (el: HTMLElement, opt_val: string) => {
+						const selected = el.querySelector(`option[selected]`);
+						const opt = el.querySelector(`option[value="${opt_val}"]`);
+						selected?.removeAttribute('selected');
+						if (opt) {
+							opt.setAttribute('selected', '');
 						}
-						if (ans.filter(Boolean).length !== 0 && elements.lineAnswerInput) {
-							//  选择答案
-							for (let index = 0; index < elements.lineSelectBox.length; index++) {
-								const box = elements.lineSelectBox[index];
-								if (ans[index]) {
-									$el(`li[data=${ans[index]}] a`, box)?.click();
-									await $.sleep(200);
-								}
-							}
+					};
 
-							return { finish: true };
+					for (const answers of searchInfos.map((info) => info.results.map((res) => res.answer))) {
+						for (const ans of answers) {
+							let splited_ans = splitAnswer(ans);
+							if (splited_ans.length !== 0 && elements.lineSelectBox.length === splited_ans.length) {
+								//  选择答案
+								for (let index = 0; index < elements.lineSelectBox.length; index++) {
+									const box = elements.lineSelectBox[index];
+									if (splited_ans[index]) {
+										select(box, splited_ans[index]);
+										const text = box.parentElement?.querySelector('.chosen-single span');
+										if (text) text.textContent = splited_ans[index];
+										await $.sleep(200);
+									}
+								}
+								return { finish: true };
+							}
 						}
 					}
 
