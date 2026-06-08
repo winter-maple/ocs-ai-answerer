@@ -1924,15 +1924,26 @@ function createResponsesApiAnswererWrapper(config: QuickApiConfig): AnswererWrap
 				if (typeof value === 'object') {
 					return extractText(
 						value.output_text ??
+						value.data?.output_text ??
 						value.text ??
+						value.value ??
 						value.content ??
 						value.message ??
-						value.output
+						value.output ??
+						value.choices?.[0]?.message?.content
 					);
 				}
 				return String(value);
 			};
-			const content = extractText(res?.output_text ?? res?.output ?? res?.content ?? res?.message);
+			const content = extractText(
+				res?.output_text ??
+				res?.data?.output_text ??
+				res?.output ??
+				res?.data?.output ??
+				res?.content ??
+				res?.message ??
+				res?.choices?.[0]?.message?.content
+			);
 			if (!content || typeof content !== 'string') return undefined;
 
 			const normalize = (value)=>{

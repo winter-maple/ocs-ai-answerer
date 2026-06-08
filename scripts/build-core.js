@@ -84,7 +84,16 @@ async function createUserJs() {
 				homepage: 'https://docs.ocsjs.com',
 				source: 'https://github.com/ocsjs/ocsjs',
 				icon: 'https://cdn.ocsjs.com/logo.png',
-				connect: ['enncy.cn', 'icodef.com', 'ocsjs.com', 'zaizhexue.top', 'xiaomimimo.com', 'localhost', '127.0.0.1'],
+				connect: [
+					'enncy.cn',
+					'icodef.com',
+					'ocsjs.com',
+					'zaizhexue.top',
+					'xiaomimimo.com',
+					'deepseek.com',
+					'localhost',
+					'127.0.0.1'
+				],
 				match: matchMetadata,
 				grant: [
 					'GM_info',
@@ -112,6 +121,10 @@ async function createUserJs() {
 	};
 
 	const officialOpts = createOptions();
+	officialOpts.metadata.downloadURL =
+		'https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.user.js';
+	officialOpts.metadata.updateURL =
+		'https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.user.js';
 	console.log('CreateUserScript: ', officialOpts.metadata.name, officialOpts.dist);
 	await createUserScript(officialOpts);
 
@@ -135,6 +148,10 @@ async function createUserJs() {
 	/** 创建全Connect域名通用脚本 */
 	const commonOpts = createOptions();
 	commonOpts.metadata.name = commonOpts.metadata.name + ' - 全域名通用版';
+	commonOpts.metadata.downloadURL =
+		'https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.common.user.js';
+	commonOpts.metadata.updateURL =
+		'https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.common.user.js';
 	const connect = Array.isArray(commonOpts.metadata.connect) ? commonOpts.metadata.connect : [];
 	connect.push('*');
 	commonOpts.metadata.connect = connect;
@@ -143,6 +160,11 @@ async function createUserJs() {
 
 	console.log('createUserScript: ', commonOpts.metadata.name, commonOpts.dist);
 	await createUserScript(commonOpts);
+
+	const userscriptsPath = path.resolve(__dirname, '../userscripts');
+	fs.mkdirSync(userscriptsPath, { recursive: true });
+	fs.copyFileSync(officialOpts.dist, path.join(userscriptsPath, 'ocs.user.js'));
+	fs.copyFileSync(commonOpts.dist, path.join(userscriptsPath, 'ocs.common.user.js'));
 }
 
 exports.default = series(cleanOutput, buildPackages, createUserJs);

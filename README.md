@@ -94,9 +94,9 @@ name: Xiaomi Mimo
 ## DeepSeek 配置示例
 
 ```text
-url: https://api.deepseek.com/v1
+url: https://api.deepseek.com
 key: 你的 key
-model: deepseek-chat
+model: deepseek-v4-flash
 name: DeepSeek
 ```
 
