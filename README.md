@@ -109,10 +109,10 @@ pnpm install
 pnpm build
 ```
 
-当前项目仍沿用原 OCS 的工程结构。核心题库配置逻辑位于：
+当前项目仍沿用原 OCS 的工程结构。AI 快捷题库配置逻辑位于：
 
 ```text
-packages/scripts/src/projects/common.ts
+packages/scripts/src/projects/common/quick-api.ts
 ```
 
 用户脚本构建元信息位于：
