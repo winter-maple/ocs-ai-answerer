@@ -90,6 +90,15 @@ model: mimo-v2.5-pro
 name: Xiaomi Mimo
 ```
 
+## DeepSeek 配置示例
+
+```text
+url: https://api.deepseek.com/v1
+key: 你的 key
+model: deepseek-chat
+name: DeepSeek
+```
+
 ## 开发说明
 
 常用命令：
