@@ -1,5 +1,5 @@
 /* eslint-disable no-template-curly-in-string */
-import type { AnswererWrapper } from '@ocsjs/core';
+import type { AnswererWrapper, SearchInformation } from '@ocsjs/core';
 
 export type QuickApiConfig = {
 	url: string;
@@ -20,6 +20,28 @@ type QuickApiConfigInput = Partial<QuickApiConfig> & {
 };
 
 const DEFAULT_MODEL = 'mimo-v2.5-pro';
+const SENSITIVE_URL_PARAM_NAMES = ['key', 'token', 'api_key', 'apikey', 'api-key', 'access_token', 'authorization'];
+export const QUICK_API_SMOKE_TEST_ENV = {
+	type: 'single',
+	title: 'What is 1 + 1?',
+	options: '1\n2\n3\n4'
+};
+
+export type QuickApiSmokeTestResult = {
+	name: string;
+	url: string;
+	maskedUrl: string;
+	api: 'chat' | 'responses' | 'generic';
+	model?: string;
+	ok: boolean;
+	answers: string[];
+	error?: string;
+};
+
+export type QuickApiSmokeTestRunner = (
+	answererWrappers: AnswererWrapper[],
+	env: typeof QUICK_API_SMOKE_TEST_ENV
+) => Promise<SearchInformation[]>;
 
 const ANSWER_SYSTEM_PROMPT = [
 	'你是一个网课自动答题助手。',
@@ -160,6 +182,52 @@ export function createQuickApiAnswererWrapper(config: QuickApiConfig): AnswererW
 	return createGenericApiAnswererWrapper(normalized);
 }
 
+export async function runQuickApiSmokeTest(
+	answererWrappers: AnswererWrapper[],
+	runner: QuickApiSmokeTestRunner
+): Promise<QuickApiSmokeTestResult[]> {
+	const results: QuickApiSmokeTestResult[] = [];
+
+	for (const wrapper of answererWrappers) {
+		const details = getQuickApiWrapperDetails(wrapper);
+		try {
+			const [searchInfo] = await runner([wrapper], QUICK_API_SMOKE_TEST_ENV);
+			const answers = (searchInfo?.results || []).map((item) => String(item.answer || '').trim()).filter(Boolean);
+			results.push({
+				...details,
+				ok: answers.length > 0 && !searchInfo?.error,
+				answers,
+				...(searchInfo?.error || answers.length === 0
+					? { error: searchInfo?.error || '测试请求成功，但没有解析到答案。' }
+					: {})
+			});
+		} catch (error: any) {
+			results.push({
+				...details,
+				ok: false,
+				answers: [],
+				error: error?.message || '测试请求失败。'
+			});
+		}
+	}
+
+	return results;
+}
+
+export function maskSensitiveUrl(value: string): string {
+	try {
+		const url = new URL(value);
+		for (const key of Array.from(url.searchParams.keys())) {
+			if (SENSITIVE_URL_PARAM_NAMES.includes(key.toLowerCase())) {
+				url.searchParams.set(key, '***');
+			}
+		}
+		return url.toString();
+	} catch {
+		return value;
+	}
+}
+
 function normalizeQuickApiConfig(input: QuickApiConfigInput): QuickApiConfig {
 	const config: QuickApiConfigInput = { ...input };
 	config.url = String(config.url || config.baseUrl || '').trim();
@@ -203,6 +271,23 @@ function normalizeQuickApiConfig(input: QuickApiConfigInput): QuickApiConfig {
 		...(config.authPrefix ? { authPrefix: config.authPrefix } : {}),
 		...(config.method ? { method: config.method } : {})
 	};
+}
+
+function getQuickApiWrapperDetails(wrapper: AnswererWrapper) {
+	const api = /responses\/?$/i.test(wrapper.url)
+		? 'responses'
+		: /chat\/completions\/?$/i.test(wrapper.url)
+		? 'chat'
+		: 'generic';
+	const model = typeof wrapper.data?.model === 'string' ? wrapper.data.model : undefined;
+
+	return {
+		name: wrapper.name,
+		url: wrapper.url,
+		maskedUrl: maskSensitiveUrl(wrapper.url),
+		api,
+		...(model ? { model } : {})
+	} as Pick<QuickApiSmokeTestResult, 'name' | 'url' | 'maskedUrl' | 'api' | 'model'>;
 }
 
 function optionalString(value: unknown) {
