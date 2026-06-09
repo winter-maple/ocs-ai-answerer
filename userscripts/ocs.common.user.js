@@ -3509,6 +3509,53 @@ var __publicField = (obj, key, value) => {
       return resolve;
     }
   }
+  function normalizeAnswerText(answer) {
+    let text = String(answer || "").trim().replace(/[Ａ-Ｚａ-ｚ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 65248)).toUpperCase();
+    for (let i = 0; i < 3; i++) {
+      const next2 = text.replace(/^[\s"'`“”‘’【】[\]（）()]+/, "").replace(/^(?:正确答案|参考答案|答案是|答案为|答案|选项|选择|应选|应该选|为|是)\s*/i, "").replace(/^[:：=.-]+\s*/, "").trim();
+      if (next2 === text) {
+        break;
+      }
+      text = next2;
+    }
+    return text.trim();
+  }
+  function resolveOptionLetters(answer, optionCount, options) {
+    if (optionCount <= 0 || optionCount > 26) {
+      return void 0;
+    }
+    const text = normalizeAnswerText(answer).replace(/^[([{（【\s]+|[)\]}）】\s]+$/g, "");
+    if (!text) {
+      return void 0;
+    }
+    let letters = null;
+    if (/^[A-Z]+$/.test(text)) {
+      letters = text.split("");
+    } else if (/^[A-Z](?:[\s,，、;；/|#&+]+[A-Z])+[\s,，、;；/|#&+]*$/.test(text)) {
+      letters = text.match(/[A-Z]/g);
+    } else if ((options == null ? void 0 : options.allowLeadingLetterWithText) && /^[A-Z](?:\s|$|[.．、,，;；:：)）\]】/])/.test(text)) {
+      letters = [text[0]];
+    }
+    if (!(letters == null ? void 0 : letters.length)) {
+      return void 0;
+    }
+    const indexes = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const letter of letters) {
+      const index = letter.charCodeAt(0) - 65;
+      if (index < 0 || index >= optionCount) {
+        return void 0;
+      }
+      if (!seen.has(index)) {
+        seen.add(index);
+        indexes.push(index);
+      }
+    }
+    if ((options == null ? void 0 : options.expectedCount) !== void 0 && indexes.length !== options.expectedCount) {
+      return void 0;
+    }
+    return indexes;
+  }
   function splitAnswer(answer, separators = ["===", "#", "---", "###", "|", ";", "；"]) {
     answer = answer.trim();
     if (answer.length === 0) {
@@ -3567,14 +3614,14 @@ var __publicField = (obj, key, value) => {
         }
         for (const info of infos) {
           for (const res of info.results) {
-            const ans = StringUtils.nowrap(res.answer, "").trim();
-            if (ans.length === 1 && /[A-Z]/.test(ans)) {
-              const index = ans.charCodeAt(0) - 65;
-              if (options[index] === void 0) {
-                continue;
-              }
-              await handler("single", options[index].innerText, options[index], ctx);
-              return { finish: true, option: options[index] };
+            const indexes = resolveOptionLetters(res.answer, options.length, {
+              expectedCount: 1,
+              allowLeadingLetterWithText: true
+            });
+            if (indexes) {
+              const option = options[indexes[0]];
+              await handler("single", option.innerText, option, ctx);
+              return { finish: true, option };
             }
           }
         }
@@ -3661,14 +3708,9 @@ var __publicField = (obj, key, value) => {
         }
         const plainOptions = [];
         for (const result of results) {
-          const ans = StringUtils.nowrap(result.answer, "").trim();
-          const plainAnswer = resolvePlainAnswer(ans);
-          if (plainAnswer) {
-            for (const char of ans) {
-              const index = char.charCodeAt(0) - 65;
-              if (options[index] === void 0) {
-                continue;
-              }
+          const indexes = resolveOptionLetters(result.answer, options.length);
+          if (indexes) {
+            for (const index of indexes) {
               await handler("multiple", options[index].innerText, options[index], ctx);
               plainOptions.push(options[index]);
             }
@@ -22962,9 +23004,11 @@ ${content}</tr>
   exports2.domSearch = domSearch;
   exports2.domSearchAll = domSearchAll;
   exports2.isPlainAnswer = isPlainAnswer;
+  exports2.normalizeAnswerText = normalizeAnswerText;
   exports2.parseJsonResponse = parseJsonResponse;
   exports2.removeRedundant = removeRedundant;
   exports2.request = request;
+  exports2.resolveOptionLetters = resolveOptionLetters;
   exports2.resolvePlainAnswer = resolvePlainAnswer;
   exports2.splitAnswer = splitAnswer;
   exports2.start = lib.start;

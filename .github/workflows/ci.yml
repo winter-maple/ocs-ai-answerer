@@ -42,6 +42,9 @@ jobs:
       - name: Test security and stability
         run: npm run test:security-stability
 
+      - name: Test answer matching
+        run: npm run test:answer-match
+
       - name: Typecheck core
         run: npm run typecheck:core
 
