@@ -16,7 +16,8 @@ import { enableCopy } from '../utils';
 import { SearchInfosElement } from '../elements/search.infos';
 import { RenderScript } from '../render';
 import { dropdownStyle } from '../utils/configs';
-import { createQuickApiAnswererWrapper, parseQuickApiConfig } from './common/quick-api';
+import { createQuickApiAnswererWrapper, parseQuickApiConfig, runQuickApiSmokeTest } from './common/quick-api';
+import type { QuickApiSmokeTestResult } from './common/quick-api';
 import { parseSettingsImport } from '../utils/settings-import';
 import { normalizeExternalText, safeHttpUrl } from '../elements/safe-render';
 import {
@@ -263,6 +264,54 @@ export const CommonProject = Project.create({
 															this.value = '点击配置';
 														}
 													});
+												};
+											}),
+											h('button', '测试URL+Key', (btn) => {
+												btn.className = 'modal-cancel-button';
+												btn.style.marginRight = '12px';
+												const updateDisabled = () => {
+													btn.disabled = select.value !== 'URL+Key';
+													btn.title = btn.disabled
+														? '请选择 URL+Key 解析器后再测试。'
+														: '测试当前 URL+Key 配置是否可用。';
+												};
+												select.addEventListener('change', updateDisabled);
+												updateDisabled();
+												btn.onclick = async () => {
+													if (select.value !== 'URL+Key') {
+														$message.warn({ content: '请先选择 URL+Key 解析器。', duration: 3 });
+														return;
+													}
+
+													const value = textarea.value.trim();
+													if (!value) {
+														$modal.alert({ content: h('div', '不能为空。') });
+														return;
+													}
+
+													const originalText = btn.textContent || '测试URL+Key';
+													btn.disabled = true;
+													btn.textContent = '测试中...';
+													try {
+														const answererWrappers = value
+															.split('###')
+															.map((i) => i.trim())
+															.filter(Boolean)
+															.map((content) => createQuickApiAnswererWrapper(parseQuickApiConfig(content)));
+														const results = await runQuickApiSmokeTest(answererWrappers, defaultAnswerWrapperHandler);
+														$modal.alert({
+															width: 680,
+															title: 'URL+Key 测试结果',
+															content: createQuickApiSmokeTestResultList(results)
+														});
+													} catch (error: any) {
+														$modal.alert({
+															content: h('div', ['测试失败：', error?.message || '配置解析失败，请检查 URL+Key 内容。'])
+														});
+													} finally {
+														btn.textContent = originalText;
+														updateDisabled();
+													}
 												};
 											}),
 											h('button', '关闭', (btn) => {
@@ -1705,6 +1754,44 @@ function insertCopyableStyle() {
 		}`;
 
 	document.head.append(style);
+}
+
+function createQuickApiSmokeTestResultList(results: QuickApiSmokeTestResult[]) {
+	if (results.length === 0) {
+		return h('div', '没有可测试的 URL+Key 配置。');
+	}
+
+	return h(
+		'div',
+		{ style: { display: 'grid', gap: '10px', fontSize: '13px' } },
+		results.map((result) =>
+			h(
+				'div',
+				{
+					style: {
+						border: '1px solid #d8dee8',
+						borderRadius: '4px',
+						padding: '10px',
+						backgroundColor: result.ok ? '#f4fbf5' : '#fff7f7'
+					}
+				},
+				[
+					h('div', { style: { fontWeight: 'bold', marginBottom: '6px' } }, [
+						result.ok ? '✅ ' : '❌ ',
+						result.name,
+						`（${result.api}${result.model ? ' / ' + result.model : ''}）`
+					]),
+					h('div', { style: { wordBreak: 'break-all', color: '#475569' } }, ['请求地址：', result.maskedUrl]),
+					result.ok
+						? h('div', { style: { marginTop: '6px' } }, ['解析答案：', result.answers.join('、')])
+						: h('div', { style: { marginTop: '6px', color: '#b91c1c' } }, [
+								'错误原因：',
+								result.error || '没有解析到可用答案。'
+						  ])
+				]
+			)
+		)
+	);
 }
 
 function createAnswererWrapperList(aw: AnswererWrapper[]) {
