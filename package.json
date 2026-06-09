@@ -14,6 +14,7 @@
 		"tsc": "pnpm lint && gulp -f ./scripts/tsc.js",
 		"lint": "pnpm format && eslint  ./packages --ext .ts,.tsx,.js,.jsx --fix",
 		"format": "prettier -c ./.prettierrc.json  **/*.ts  **/*.js  **/*.css  --write",
+		"test:quick-api": "node ./scripts/test-quick-api.js",
 		"release": "sh ./scripts/release.sh",
 		"pub:minor": "npm version minor && pnpm build:core && npm publish",
 		"pub:major": "npm version major && pnpm build:core && npm publish",
