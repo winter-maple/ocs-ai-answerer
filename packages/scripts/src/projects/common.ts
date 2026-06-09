@@ -19,6 +19,11 @@ import { dropdownStyle } from '../utils/configs';
 import { createQuickApiAnswererWrapper, parseQuickApiConfig } from './common/quick-api';
 import { parseSettingsImport } from '../utils/settings-import';
 import { normalizeExternalText, safeHttpUrl } from '../elements/safe-render';
+import {
+	collectSettingsForExport,
+	normalizeDisabledAnswererNames,
+	parseNotificationWebhooks
+} from '../utils/config-reliability';
 
 const TAB_WORK_RESULTS_KEY = 'common.work-results.results';
 
@@ -695,6 +700,10 @@ export const CommonProject = Project.create({
 					getWorkOptions: () => {
 						// 使用 json 深拷贝，防止修改原始配置
 						const workOptions: typeof this.cfg = JSON.parse(JSON.stringify(this.cfg));
+						this.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+							this.cfg.disabledAnswererWrapperNames,
+							this.cfg.answererWrappers.map((aw) => aw.name)
+						);
 
 						/**
 						 * 过滤掉被禁用的题库
@@ -727,29 +736,29 @@ export const CommonProject = Project.create({
 								extraTitle: opts?.extraTitle,
 								duration: opts?.duration ?? 30,
 								important: this.cfg.notification === 'all',
-								silent: this.cfg.notification === 'only-notify'
+								silent: this.cfg.notification === 'only-notify',
+								onclick: opts?.onclick,
+								ondone: opts?.ondone
 							});
 
 							const message = (opts?.extraTitle ? opts?.extraTitle + '：' : '') + content;
 
-							const webhooks = this.cfg.notificationWebhooks
-								.split('\n')
-								.map((i) => i.trim())
-								.filter(Boolean);
+							const webhooks = parseNotificationWebhooks(this.cfg.notificationWebhooks, message);
 
-							for (const webhook of webhooks) {
-								let resolved_webhook = webhook;
-								// eslint-disable-next-line no-template-curly-in-string
-								resolved_webhook = webhook.replace('${message}', encodeURIComponent(message));
-								request(resolved_webhook, {
+							for (const webhook of webhooks.skipped) {
+								console.debug('通知回调配置已跳过', { webhook });
+							}
+
+							for (const webhook of webhooks.urls) {
+								request(webhook, {
 									method: 'get',
 									type: 'GM_xmlhttpRequest'
 								})
 									.then((result) => {
-										console.debug('通知回调成功', { webhook: resolved_webhook, result });
+										console.debug('通知回调成功', { webhook, result });
 									})
 									.catch((err) => {
-										console.debug('通知回调失败', { webhook: resolved_webhook, err });
+										console.debug('通知回调失败', { webhook, err });
 									});
 							}
 						}
@@ -808,6 +817,10 @@ export const CommonProject = Project.create({
 						tableContainer.replaceChildren();
 						errorSolveGuide.style.display = 'none';
 						let loadedCount = 0;
+						this.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+							this.cfg.disabledAnswererWrapperNames,
+							this.cfg.answererWrappers.map((aw) => aw.name)
+						);
 
 						if (this.cfg.answererWrappers.length) {
 							refresh.style.display = 'block';
@@ -1613,13 +1626,7 @@ export const CommonProject = Project.create({
 						},
 						(btn) => {
 							btn.onclick = () => {
-								const setting = Object.create({});
-								for (const key of $store.list()) {
-									const val = $store.get(key);
-									if (val) {
-										Reflect.set(setting, key, val);
-									}
-								}
+								const setting = collectSettingsForExport($store.list(), (key) => $store.get(key));
 								const blob = new Blob([JSON.stringify(setting, null, 2)], { type: 'text/plain' });
 								const url = URL.createObjectURL(blob);
 								const a = h('a', { href: url, download: 'ocs-setting-export.ocssetting' });
@@ -1701,6 +1708,11 @@ function insertCopyableStyle() {
 }
 
 function createAnswererWrapperList(aw: AnswererWrapper[]) {
+	CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+		CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames,
+		aw.map((item) => item.name)
+	);
+
 	return aw.map((item) =>
 		h(
 			'details',
@@ -1715,10 +1727,10 @@ function createAnswererWrapperList(aw: AnswererWrapper[]) {
 							checkbox.onclick = () => {
 								isDisabled = !isDisabled;
 								if (isDisabled) {
-									CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames = [
-										...CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames,
-										item.name
-									];
+									CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+										[...CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames, item.name],
+										aw.map((answerer) => answerer.name)
+									);
 									$message.warn({
 										content: '题库：' + item.name + ' 已被停用，如需开启请在：通用-全局设置-题库配置中开启。',
 										duration: 30
