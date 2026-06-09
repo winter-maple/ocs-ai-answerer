@@ -17,6 +17,8 @@ import { SearchInfosElement } from '../elements/search.infos';
 import { RenderScript } from '../render';
 import { dropdownStyle } from '../utils/configs';
 import { createQuickApiAnswererWrapper, parseQuickApiConfig } from './common/quick-api';
+import { parseSettingsImport } from '../utils/settings-import';
+import { normalizeExternalText, safeHttpUrl } from '../elements/safe-render';
 
 const TAB_WORK_RESULTS_KEY = 'common.work-results.results';
 
@@ -1642,15 +1644,21 @@ export const CommonProject = Project.create({
 								input.onchange = async () => {
 									const file = input.files?.[0];
 									if (file) {
-										const setting = await file.text();
-										const obj = JSON.parse(setting);
-										for (const key of Object.keys(obj)) {
-											$store.set(key, obj[key]);
+										try {
+											const setting = await file.text();
+											const obj = parseSettingsImport(setting);
+											for (const key of Object.keys(obj)) {
+												$store.set(key, obj[key]);
+											}
+											$message.success({ content: '设置导入成功，页面即将刷新。', duration: 3 });
+											setTimeout(() => {
+												location.reload();
+											}, 3000);
+										} catch (error: any) {
+											$modal.alert({
+												content: h('div', ['设置导入失败：', error?.message || '文件格式错误，请重新选择设置文件。'])
+											});
 										}
-										$message.success({ content: '设置导入成功，页面即将刷新。', duration: 3 });
-										setTimeout(() => {
-											location.reload();
-										}, 3000);
 									}
 								};
 								input.click();
@@ -1736,7 +1744,7 @@ function createAnswererWrapperList(aw: AnswererWrapper[]) {
 				]),
 				h('ul', [
 					h('li', ['名字\t', item.name]),
-					h('li', { innerHTML: `官网\t<a target="_blank" href=${item.homepage}>${item.homepage || '无'}</a>` }),
+					h('li', ['官网\t', createSafeHomepageDetail(item.homepage)]),
 					h('li', ['接口\t', item.url]),
 					h('li', ['接口类型\t', getAnswererWrapperApiType(item)]),
 					h('li', ['模型\t', getAnswererWrapperModel(item)]),
@@ -1751,6 +1759,16 @@ function createAnswererWrapperList(aw: AnswererWrapper[]) {
 			}
 		)
 	);
+}
+
+function createSafeHomepageDetail(homepage: unknown) {
+	const href = safeHttpUrl(homepage);
+	const label = normalizeExternalText(homepage, '无');
+	if (!href) {
+		return label;
+	}
+
+	return h('a', { href, target: '_blank', rel: 'noreferrer noopener', innerText: label });
 }
 
 function getAnswererWrapperApiType(item: AnswererWrapper) {

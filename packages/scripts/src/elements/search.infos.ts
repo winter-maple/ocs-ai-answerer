@@ -1,21 +1,13 @@
 import { SimplifyWorkResult, splitAnswer, $, QuestionTypes } from '@ocsjs/core';
 import { $ui, h } from 'easy-us';
 import { createQuestionTitleExtra } from '../utils';
-
-/**
- * 判断是否有图片链接，如果有则使用 <img> 标签包裹，但如果已经被 <img> 包裹则不处理
- */
-const transformImgLinkOfQuestion = (question: string) => {
-	// 防止题目中包含 img 标签元素，所以先统一吧 img 标签替换成链接
-	const dom = new DOMParser().parseFromString(question, 'text/html');
-	for (const img of Array.from(dom.querySelectorAll('img'))) {
-		img.replaceWith(img.src);
-	}
-	// 最后将所有图片链接替换成 img 标签
-	return dom.documentElement.innerHTML.replace(/https?:\/\/.+?\.(png|jpg|jpeg|gif)/g, (img) => {
-		return `<img src="${img}" />`;
-	});
-};
+import {
+	createSafeCode,
+	createSafeContentSpan,
+	createSafeHomepageNode,
+	getSafeTagColor,
+	normalizeExternalText
+} from './safe-render';
 
 /**
  * 搜索结果元素
@@ -29,8 +21,6 @@ export class SearchInfosElement extends HTMLElement {
 	type: QuestionTypes;
 
 	connectedCallback() {
-		const question = transformImgLinkOfQuestion(this.question || '无');
-
 		const type_text = {
 			single: '单选题',
 			multiple: '多选题',
@@ -44,7 +34,7 @@ export class SearchInfosElement extends HTMLElement {
 				'div',
 				[
 					...(type_label ? [h('span', { className: 'search-result-question-type' }, type_label)] : []),
-					h('span', { innerHTML: question }),
+					createSafeContentSpan(this.question, '无'),
 					createQuestionTitleExtra(this.question)
 				],
 				(div) => {
@@ -56,7 +46,7 @@ export class SearchInfosElement extends HTMLElement {
 		this.append(
 			...this.infos.map((info) => {
 				return h('details', { open: true, className: 'search-info-details' }, [
-					h('summary', [h('a', { href: info.homepage, innerText: info.name, target: '_blank' })]),
+					h('summary', [createSafeHomepageNode(info.name, info.homepage)]),
 
 					...(info.error
 						? /** 显示错误信息 */
@@ -65,9 +55,9 @@ export class SearchInfosElement extends HTMLElement {
 						  []
 					).concat([
 						...info.results.map((ans) => {
-							const title = transformImgLinkOfQuestion(ans[0] || this.question || '无');
-							const answer = transformImgLinkOfQuestion(ans[1] || '无');
-							const extra_data = JSON.parse(JSON.stringify(ans[2] || {}));
+							const title = ans[0] || this.question || '无';
+							const answer = normalizeExternalText(ans[1], '无');
+							const extra_data = copyExtraData(ans[2]);
 
 							if (extra_data.ai) {
 								extra_data.tags = extra_data.tags || [];
@@ -90,7 +80,7 @@ export class SearchInfosElement extends HTMLElement {
 
 							return h('div', { className: 'search-result' }, [
 								/** 题目 */
-								h('div', { className: 'question' }, [h('span', { innerHTML: title })]),
+								h('div', { className: 'question' }, [createSafeContentSpan(title, '无')]),
 								/** 答案 */
 								h('div', { className: 'answer' }, [
 									h('span', '答案：'),
@@ -98,15 +88,17 @@ export class SearchInfosElement extends HTMLElement {
 										? extra_data.tags.map((tag: { text: string; title: string; color: string }) =>
 												$ui.tooltip(
 													h('span', {
-														className: 'search-result-answer-tag ' + tag.color,
-														innerHTML: tag.text,
-														title: tag.title,
-														dataset: { title: tag.title }
+														className: ['search-result-answer-tag', getSafeTagColor(tag.color)]
+															.filter(Boolean)
+															.join(' '),
+														innerText: normalizeExternalText(tag.text),
+														title: normalizeExternalText(tag.title),
+														dataset: { title: normalizeExternalText(tag.title) }
 													})
 												)
 										  )
 										: []),
-									...splitAnswer(answer).map((a) => h('code', { innerHTML: a }))
+									...splitAnswer(answer).map((a) => createSafeCode(a))
 								])
 							]);
 						})
@@ -118,5 +110,13 @@ export class SearchInfosElement extends HTMLElement {
 		$.onresize(this, (sr) => {
 			sr.style.maxHeight = window.innerHeight / 2 + 'px';
 		});
+	}
+}
+
+function copyExtraData(value: unknown) {
+	try {
+		return JSON.parse(JSON.stringify(value || {}));
+	} catch {
+		return {};
 	}
 }

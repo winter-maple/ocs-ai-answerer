@@ -47,6 +47,9 @@ jobs:
       - name: Test Quick API
         run: npm run test:quick-api
 
+      - name: Test security and stability
+        run: npm run test:security-stability
+
       - name: Typecheck core
         run: npm run typecheck:core
 
