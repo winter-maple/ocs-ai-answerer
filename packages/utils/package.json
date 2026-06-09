@@ -7,7 +7,7 @@
 	"scripts": {},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ocsjs/ocsjs.git"
+		"url": "git+https://github.com/winter-maple/ocs-ai-answerer.git"
 	},
 	"keywords": [
 		"ocs",
@@ -19,12 +19,12 @@
 		"ant-design-vue",
 		"typescript"
 	],
-	"author": "enncy",
+	"author": "winter-maple; original OCS by enncy",
 	"license": "MIT",
 	"bugs": {
-		"url": "https://github.com/ocsjs/ocsjs/issues"
+		"url": "https://github.com/winter-maple/ocs-ai-answerer/issues"
 	},
-	"homepage": "https://github.com/ocsjs/ocsjs#readme",
+	"homepage": "https://github.com/winter-maple/ocs-ai-answerer#readme",
 	"devDependencies": {
 		"@types/node-fetch": "^2.6.2"
 	},

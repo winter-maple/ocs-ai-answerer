@@ -1,14 +1,17 @@
 name: CI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
       - main
-      - "4.0"
+      - '4.0'
   pull_request:
     branches:
       - main
-      - "4.0"
+      - '4.0'
 
 jobs:
   test:
@@ -18,15 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -34,5 +36,14 @@ jobs:
       - name: Test Quick API
         run: npm run test:quick-api
 
+      - name: Typecheck core
+        run: npm run typecheck:core
+
       - name: Typecheck scripts
         run: npm run typecheck:scripts
+
+      - name: Lint
+        run: npm run lint:check
+
+      - name: Build
+        run: pnpm build

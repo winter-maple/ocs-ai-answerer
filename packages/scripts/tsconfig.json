@@ -10,7 +10,11 @@
 		"forceConsistentCasingInFileNames": true,
 		"lib": ["DOM", "ES2020"],
 		"jsx": "preserve",
-		"resolveJsonModule": true
+		"resolveJsonModule": true,
+		"baseUrl": ".",
+		"paths": {
+			"@ocsjs/core": ["../core/src/index.ts"]
+		}
 	},
 	"include": ["./src/**/*.ts"],
 	"files": ["./global.d.ts"]

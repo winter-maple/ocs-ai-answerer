@@ -174,8 +174,7 @@ export const CommonProject = Project.create({
 										h(
 											'option',
 											{
-												title:
-													'快捷接入在线题库 API，只需填写 url 和 key，脚本会自动生成常见的题库请求配置。'
+												title: '快捷接入在线题库 API，只需填写 url 和 key，脚本会自动生成常见的题库请求配置。'
 											},
 											'URL+Key'
 										)
@@ -222,15 +221,16 @@ export const CommonProject = Project.create({
 									],
 									[h('div', { className: 'secondary' }, '⚠️ 配置第三方题库出现网页弹窗的，点击永久允许连接。')],
 									[
-										h(
-											'div',
-											{ className: 'secondary' },
-											[
-												'OpenAI-compatible /v1 API can use ',
-												h('b', 'URL+Key'),
-												' parser. Example: url: https://token-plan-cn.xiaomimimo.com/v1  key: sk-xxx  model: mimo-v2.5-pro'
-											]
-										)
+										h('div', { className: 'secondary' }, [
+											'OpenAI 兼容接口请使用 ',
+											h('b', 'URL+Key'),
+											' 解析器。支持 url: https://example.com/v1、url: https://example.com/v1/chat/completions、url: https://example.com/v1/responses。'
+										])
+									],
+									[
+										h('div', { className: 'secondary' }, [
+											'示例：url: https://token-plan-cn.xiaomimimo.com/v1  key: sk-xxx  model: mimo-v2.5-pro。多个配置仍使用 ### 分隔。'
+										])
 									],
 									...(aw.length ? [list] : [])
 								]),
@@ -341,7 +341,11 @@ export const CommonProject = Project.create({
 																.split('###')
 																.map((i) => i.trim())
 																.filter(Boolean);
-															awsResult.push(...contents.map((content) => createQuickApiAnswererWrapper(parseQuickApiConfig(content))));
+															awsResult.push(
+																...contents.map((content) =>
+																	createQuickApiAnswererWrapper(parseQuickApiConfig(content))
+																)
+															);
 														} else {
 															const contents = value
 																.split('###')
@@ -1734,6 +1738,8 @@ function createAnswererWrapperList(aw: AnswererWrapper[]) {
 					h('li', ['名字\t', item.name]),
 					h('li', { innerHTML: `官网\t<a target="_blank" href=${item.homepage}>${item.homepage || '无'}</a>` }),
 					h('li', ['接口\t', item.url]),
+					h('li', ['接口类型\t', getAnswererWrapperApiType(item)]),
+					h('li', ['模型\t', getAnswererWrapperModel(item)]),
 					h('li', ['请求方法\t', item.method]),
 					h('li', ['请求类型\t', item.type]),
 					h('li', ['请求头\t', JSON.stringify(item.headers, null, 4) || '无']),
@@ -1745,6 +1751,23 @@ function createAnswererWrapperList(aw: AnswererWrapper[]) {
 			}
 		)
 	);
+}
+
+function getAnswererWrapperApiType(item: AnswererWrapper) {
+	const url = item.url || '';
+	if (/responses\/?$/i.test(url)) {
+		return 'Responses API';
+	}
+	if (/chat\/completions\/?$/i.test(url)) {
+		return 'Chat Completions';
+	}
+	return '通用题库 API';
+}
+
+function getAnswererWrapperModel(item: AnswererWrapper) {
+	const data = item.data as any;
+	const model = data?.model;
+	return typeof model === 'string' && model ? model : '无';
 }
 
 const createGuide = () => {
