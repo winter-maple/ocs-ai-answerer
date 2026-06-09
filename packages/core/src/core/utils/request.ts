@@ -40,23 +40,21 @@ export function request<T extends 'json' | 'text'>(
 						headers: Object.keys(headers).length ? headers : undefined,
 						responseType: responseType === 'json' ? 'json' : undefined,
 						onload: (response) => {
-							if (response.status === 200) {
+							if (response.status >= 200 && response.status < 300) {
 								if (responseType === 'json') {
-									try {
-										resolve(JSON.parse(response.responseText));
-									} catch (error) {
-										reject(error);
-									}
+									resolve(
+										parseJsonResponse(response.response ?? response.responseText) as T extends 'json' ? any : string
+									);
 								} else {
-									resolve(response.responseText || '');
+									resolve((response.responseText || '') as T extends 'json' ? any : string);
 								}
 							} else {
-								reject(response.responseText);
+								reject(createRequestError(response.status, response.responseText));
 							}
 						},
 						onerror: (err) => {
 							console.error('GM_xmlhttpRequest error', err);
-							reject(err);
+							reject(new Error('题库连接失败，请检查网络或跨域权限。'));
 						}
 					});
 				} else {
@@ -66,20 +64,48 @@ export function request<T extends 'json' | 'text'>(
 				const fet: typeof fetch = env === 'node' ? require('node-fetch').default : fetch;
 
 				fet(url, { body: method === 'post' ? JSON.stringify(data) : undefined, method, headers })
-					.then((response) => {
+					.then(async (response) => {
+						const text = await response.text();
+						if (!response.ok) {
+							throw createRequestError(response.status, text || response.statusText);
+						}
+
 						if (responseType === 'json') {
-							response.json().then(resolve).catch(reject);
+							resolve(parseJsonResponse(text) as T extends 'json' ? any : string);
 						} else {
-							// @ts-ignore
-							response.text().then(resolve).catch(reject);
+							resolve(text as T extends 'json' ? any : string);
 						}
 					})
 					.catch((error) => {
-						reject(new Error(error));
+						reject(error instanceof Error ? error : new Error(String(error)));
 					});
 			}
 		} catch (error) {
 			reject(error);
 		}
 	});
+}
+
+export function parseJsonResponse(value: unknown) {
+	if (value !== undefined && value !== null && typeof value !== 'string') {
+		return value;
+	}
+
+	const text = String(value || '').trim();
+	if (!text) {
+		throw new Error('题库返回不是有效 JSON');
+	}
+
+	try {
+		return JSON.parse(text);
+	} catch {
+		throw new Error('题库返回不是有效 JSON');
+	}
+}
+
+export function createRequestError(status: number, body?: string) {
+	const detail = String(body || '')
+		.trim()
+		.slice(0, 120);
+	return new Error(`题库请求失败（HTTP ${status}）${detail ? '：' + detail : ''}`);
 }

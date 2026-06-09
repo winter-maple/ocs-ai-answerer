@@ -515,23 +515,22 @@ var __publicField = (obj, key, value) => {
               headers: Object.keys(headers).length ? headers : void 0,
               responseType: responseType === "json" ? "json" : void 0,
               onload: (response) => {
-                if (response.status === 200) {
+                var _a;
+                if (response.status >= 200 && response.status < 300) {
                   if (responseType === "json") {
-                    try {
-                      resolve(JSON.parse(response.responseText));
-                    } catch (error) {
-                      reject(error);
-                    }
+                    resolve(
+                      parseJsonResponse((_a = response.response) != null ? _a : response.responseText)
+                    );
                   } else {
                     resolve(response.responseText || "");
                   }
                 } else {
-                  reject(response.responseText);
+                  reject(createRequestError(response.status, response.responseText));
                 }
               },
               onerror: (err) => {
                 console.error("GM_xmlhttpRequest error", err);
-                reject(err);
+                reject(new Error("题库连接失败，请检查网络或跨域权限。"));
               }
             });
           } else {
@@ -539,20 +538,42 @@ var __publicField = (obj, key, value) => {
           }
         } else {
           const fet = env === "node" ? require("node-fetch").default : fetch;
-          fet(url, { body: method === "post" ? JSON.stringify(data) : void 0, method, headers }).then((response) => {
+          fet(url, { body: method === "post" ? JSON.stringify(data) : void 0, method, headers }).then(async (response) => {
+            const text = await response.text();
+            if (!response.ok) {
+              throw createRequestError(response.status, text || response.statusText);
+            }
             if (responseType === "json") {
-              response.json().then(resolve).catch(reject);
+              resolve(parseJsonResponse(text));
             } else {
-              response.text().then(resolve).catch(reject);
+              resolve(text);
             }
           }).catch((error) => {
-            reject(new Error(error));
+            reject(error instanceof Error ? error : new Error(String(error)));
           });
         }
       } catch (error) {
         reject(error);
       }
     });
+  }
+  function parseJsonResponse(value) {
+    if (value !== void 0 && value !== null && typeof value !== "string") {
+      return value;
+    }
+    const text = String(value || "").trim();
+    if (!text) {
+      throw new Error("题库返回不是有效 JSON");
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error("题库返回不是有效 JSON");
+    }
+  }
+  function createRequestError(status, body) {
+    const detail = String(body || "").trim().slice(0, 120);
+    return new Error(`题库请求失败（HTTP ${status}）${detail ? "：" + detail : ""}`);
   }
   var lib$1 = {};
   var start$3 = {};
@@ -9102,15 +9123,94 @@ ${content}</tr>
   const RenderScript = lib.createRenderScript({
     name: "🖼️ 窗口设置"
   });
-  const transformImgLinkOfQuestion = (question) => {
-    const dom2 = new DOMParser().parseFromString(question, "text/html");
-    for (const img of Array.from(dom2.querySelectorAll("img"))) {
-      img.replaceWith(img.src);
+  const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif)$/i;
+  const URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+  const SAFE_TAG_COLORS = ["blue", "gray"];
+  function normalizeExternalText(value, fallback = "") {
+    const text = value === void 0 || value === null ? "" : String(value);
+    if (!text.trim()) {
+      return fallback;
     }
-    return dom2.documentElement.innerHTML.replace(/https?:\/\/.+?\.(png|jpg|jpeg|gif)/g, (img) => {
-      return `<img src="${img}" />`;
+    const template = document.createElement("template");
+    template.innerHTML = text;
+    for (const img of Array.from(template.content.querySelectorAll("img"))) {
+      img.replaceWith(document.createTextNode(" " + (img.getAttribute("src") || img.src || "") + " "));
+    }
+    const normalized = (template.content.textContent || text).trim();
+    return normalized || fallback;
+  }
+  function createSafeContentNodes(value, fallback = "") {
+    const text = normalizeExternalText(value, fallback);
+    const nodes = [];
+    let lastIndex = 0;
+    text.replace(URL_PATTERN, (url, index) => {
+      if (index > lastIndex) {
+        nodes.push(document.createTextNode(text.slice(lastIndex, index)));
+      }
+      if (isSafeImageUrl(url)) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "题目图片";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        nodes.push(img);
+      } else {
+        nodes.push(document.createTextNode(url));
+      }
+      lastIndex = index + url.length;
+      return url;
     });
-  };
+    if (lastIndex < text.length) {
+      nodes.push(document.createTextNode(text.slice(lastIndex)));
+    }
+    return nodes.length ? nodes : [document.createTextNode(fallback)];
+  }
+  function createSafeContentSpan(value, fallback = "") {
+    const span = document.createElement("span");
+    span.append(...createSafeContentNodes(value, fallback));
+    return span;
+  }
+  function createSafeCode(value, fallback = "") {
+    const code = document.createElement("code");
+    code.append(...createSafeContentNodes(value, fallback));
+    return code;
+  }
+  function createSafeHomepageNode(name, homepage) {
+    const label = normalizeExternalText(name, "未知题库");
+    const href = safeHttpUrl(homepage);
+    if (!href) {
+      return document.createTextNode(label);
+    }
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.target = "_blank";
+    anchor.rel = "noreferrer noopener";
+    anchor.textContent = label;
+    return anchor;
+  }
+  function getSafeTagColor(color) {
+    const value = normalizeExternalText(color).toLowerCase();
+    return SAFE_TAG_COLORS.includes(value) ? value : "";
+  }
+  function safeHttpUrl(value) {
+    const text = value === void 0 || value === null ? "" : String(value).trim();
+    if (!text) {
+      return void 0;
+    }
+    try {
+      const url = new URL(text);
+      return url.protocol === "http:" || url.protocol === "https:" ? url.href : void 0;
+    } catch {
+      return void 0;
+    }
+  }
+  function isSafeImageUrl(value) {
+    const href = safeHttpUrl(value);
+    if (!href) {
+      return false;
+    }
+    return IMAGE_EXTENSIONS.test(new URL(href).pathname);
+  }
   class SearchInfosElement extends HTMLElement {
     constructor() {
       super(...arguments);
@@ -9118,7 +9218,6 @@ ${content}</tr>
       this.question = "";
     }
     connectedCallback() {
-      const question = transformImgLinkOfQuestion(this.question || "无");
       const type_text = {
         single: "单选题",
         multiple: "多选题",
@@ -9131,7 +9230,7 @@ ${content}</tr>
           "div",
           [
             ...type_label ? [lib.h("span", { className: "search-result-question-type" }, type_label)] : [],
-            lib.h("span", { innerHTML: question }),
+            createSafeContentSpan(this.question, "无"),
             createQuestionTitleExtra(this.question)
           ],
           (div) => {
@@ -9142,12 +9241,12 @@ ${content}</tr>
       this.append(
         ...this.infos.map((info) => {
           return lib.h("details", { open: true, className: "search-info-details" }, [
-            lib.h("summary", [lib.h("a", { href: info.homepage, innerText: info.name, target: "_blank" })]),
+            lib.h("summary", [createSafeHomepageNode(info.name, info.homepage)]),
             ...(info.error ? [lib.h("span", { className: "error" }, [info.error || "网络错误或者未知错误"])] : []).concat([
               ...info.results.map((ans) => {
-                const title = transformImgLinkOfQuestion(ans[0] || this.question || "无");
-                const answer = transformImgLinkOfQuestion(ans[1] || "无");
-                const extra_data = JSON.parse(JSON.stringify(ans[2] || {}));
+                const title = ans[0] || this.question || "无";
+                const answer = normalizeExternalText(ans[1], "无");
+                const extra_data = copyExtraData(ans[2]);
                 if (extra_data.ai) {
                   extra_data.tags = extra_data.tags || [];
                   extra_data.tags.push({
@@ -9165,20 +9264,20 @@ ${content}</tr>
                   });
                 }
                 return lib.h("div", { className: "search-result" }, [
-                  lib.h("div", { className: "question" }, [lib.h("span", { innerHTML: title })]),
+                  lib.h("div", { className: "question" }, [createSafeContentSpan(title, "无")]),
                   lib.h("div", { className: "answer" }, [
                     lib.h("span", "答案："),
                     ...extra_data.tags ? extra_data.tags.map(
                       (tag) => lib.$ui.tooltip(
                         lib.h("span", {
-                          className: "search-result-answer-tag " + tag.color,
-                          innerHTML: tag.text,
-                          title: tag.title,
-                          dataset: { title: tag.title }
+                          className: ["search-result-answer-tag", getSafeTagColor(tag.color)].filter(Boolean).join(" "),
+                          innerText: normalizeExternalText(tag.text),
+                          title: normalizeExternalText(tag.title),
+                          dataset: { title: normalizeExternalText(tag.title) }
                         })
                       )
                     ) : [],
-                    ...splitAnswer(answer).map((a) => lib.h("code", { innerHTML: a }))
+                    ...splitAnswer(answer).map((a) => createSafeCode(a))
                   ])
                 ]);
               })
@@ -9189,6 +9288,13 @@ ${content}</tr>
       $.onresize(this, (sr) => {
         sr.style.maxHeight = window.innerHeight / 2 + "px";
       });
+    }
+  }
+  function copyExtraData(value) {
+    try {
+      return JSON.parse(JSON.stringify(value || {}));
+    } catch {
+      return {};
     }
   }
   const $render = {
@@ -10370,12 +10476,16 @@ ${content}</tr>
         lib.h("span", { className: "question-title-extra-btn", innerText: "🌏百度一下" }, (btn) => {
           btn.onclick = () => {
             popupWin == null ? void 0 : popupWin.close();
-            popupWin = $.createCenteredPopupWindow(`https://www.baidu.com/s?wd=${question}`, "百度搜索", {
-              width: 1e3,
-              height: 800,
-              resizable: true,
-              scrollbars: true
-            });
+            popupWin = $.createCenteredPopupWindow(
+              `https://www.baidu.com/s?wd=${encodeURIComponent(question)}`,
+              "百度搜索",
+              {
+                width: 1e3,
+                height: 800,
+                resizable: true,
+                scrollbars: true
+              }
+            );
           };
         })
       ],
@@ -10873,6 +10983,36 @@ ${content}</tr>
       return config2.key;
     }
     return `${prefix} ${config2.key}`;
+  }
+  const BLOCKED_SETTING_KEYS = ["__proto__", "constructor", "prototype"];
+  function parseSettingsImport(raw) {
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error("文件不是有效 JSON，请确认导入的是 .ocssetting 设置文件。");
+    }
+    if (!isPlainObject(parsed)) {
+      throw new Error("设置文件格式错误，根内容必须是一个对象。");
+    }
+    const safeSettings = {};
+    for (const key of Object.keys(parsed)) {
+      if (BLOCKED_SETTING_KEYS.includes(key)) {
+        continue;
+      }
+      safeSettings[key] = parsed[key];
+    }
+    if (Object.keys(safeSettings).length === 0) {
+      throw new Error("设置文件中没有可导入的设置项。");
+    }
+    return safeSettings;
+  }
+  function isPlainObject(value) {
+    if (Object.prototype.toString.call(value) !== "[object Object]") {
+      return false;
+    }
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
   }
   const TAB_WORK_RESULTS_KEY = "common.work-results.results";
   const state$6 = {
@@ -12271,15 +12411,21 @@ ${content}</tr>
                     var _a;
                     const file = (_a = input.files) == null ? void 0 : _a[0];
                     if (file) {
-                      const setting = await file.text();
-                      const obj = JSON.parse(setting);
-                      for (const key of Object.keys(obj)) {
-                        lib.$store.set(key, obj[key]);
+                      try {
+                        const setting = await file.text();
+                        const obj = parseSettingsImport(setting);
+                        for (const key of Object.keys(obj)) {
+                          lib.$store.set(key, obj[key]);
+                        }
+                        lib.$message.success({ content: "设置导入成功，页面即将刷新。", duration: 3 });
+                        setTimeout(() => {
+                          location.reload();
+                        }, 3e3);
+                      } catch (error) {
+                        lib.$modal.alert({
+                          content: lib.h("div", ["设置导入失败：", (error == null ? void 0 : error.message) || "文件格式错误，请重新选择设置文件。"])
+                        });
                       }
-                      lib.$message.success({ content: "设置导入成功，页面即将刷新。", duration: 3 });
-                      setTimeout(() => {
-                        location.reload();
-                      }, 3e3);
                     }
                   };
                   input.click();
@@ -12354,7 +12500,7 @@ ${content}</tr>
           ]),
           lib.h("ul", [
             lib.h("li", ["名字	", item.name]),
-            lib.h("li", { innerHTML: `官网	<a target="_blank" href=${item.homepage}>${item.homepage || "无"}</a>` }),
+            lib.h("li", ["官网	", createSafeHomepageDetail(item.homepage)]),
             lib.h("li", ["接口	", item.url]),
             lib.h("li", ["接口类型	", getAnswererWrapperApiType(item)]),
             lib.h("li", ["模型	", getAnswererWrapperModel(item)]),
@@ -12369,6 +12515,14 @@ ${content}</tr>
         }
       )
     );
+  }
+  function createSafeHomepageDetail(homepage) {
+    const href = safeHttpUrl(homepage);
+    const label = normalizeExternalText(homepage, "无");
+    if (!href) {
+      return label;
+    }
+    return lib.h("a", { href, target: "_blank", rel: "noreferrer noopener", innerText: label });
   }
   function getAnswererWrapperApiType(item) {
     const url = item.url || "";
@@ -22602,12 +22756,14 @@ ${content}</tr>
   exports2.answerSimilar = answerSimilar;
   exports2.clearString = clearString;
   exports2.createDefaultQuestionResolver = createDefaultQuestionResolver;
+  exports2.createRequestError = createRequestError;
   exports2.defaultAnswerWrapperHandler = defaultAnswerWrapperHandler;
   exports2.defaultWorkTypeResolver = defaultWorkTypeResolver;
   exports2.definedProjects = definedProjects;
   exports2.domSearch = domSearch;
   exports2.domSearchAll = domSearchAll;
   exports2.isPlainAnswer = isPlainAnswer;
+  exports2.parseJsonResponse = parseJsonResponse;
   exports2.removeRedundant = removeRedundant;
   exports2.request = request;
   exports2.resolvePlainAnswer = resolvePlainAnswer;
