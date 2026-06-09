@@ -10984,7 +10984,7 @@ ${content}</tr>
     }
     return `${prefix} ${config2.key}`;
   }
-  const BLOCKED_SETTING_KEYS = ["__proto__", "constructor", "prototype"];
+  const BLOCKED_SETTING_KEYS$1 = ["__proto__", "constructor", "prototype"];
   function parseSettingsImport(raw) {
     let parsed;
     try {
@@ -10997,7 +10997,7 @@ ${content}</tr>
     }
     const safeSettings = {};
     for (const key of Object.keys(parsed)) {
-      if (BLOCKED_SETTING_KEYS.includes(key)) {
+      if (BLOCKED_SETTING_KEYS$1.includes(key)) {
         continue;
       }
       safeSettings[key] = parsed[key];
@@ -11013,6 +11013,66 @@ ${content}</tr>
     }
     const prototype = Object.getPrototypeOf(value);
     return prototype === Object.prototype || prototype === null;
+  }
+  const BLOCKED_SETTING_KEYS = ["__proto__", "constructor", "prototype"];
+  function parseNotificationWebhooks(raw, message2) {
+    const encodedMessage = encodeURIComponent(message2);
+    const urls = [];
+    const skipped = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const line of raw.split(/\r?\n/)) {
+      const webhook = line.trim();
+      if (!webhook || webhook.startsWith("#")) {
+        continue;
+      }
+      const resolved = webhook.split("${message}").join(encodedMessage);
+      if (!isHttpUrl(resolved)) {
+        skipped.push(webhook);
+        continue;
+      }
+      if (!seen.has(resolved)) {
+        seen.add(resolved);
+        urls.push(resolved);
+      }
+    }
+    return { urls, skipped };
+  }
+  function collectSettingsForExport(keys, getValue) {
+    const settings = /* @__PURE__ */ Object.create(null);
+    for (const key of keys) {
+      if (isBlockedSettingKey(key)) {
+        continue;
+      }
+      const value = getValue(key);
+      if (value !== void 0) {
+        settings[key] = value;
+      }
+    }
+    return settings;
+  }
+  function normalizeDisabledAnswererNames(disabledNames, answererNames) {
+    const available = new Set(answererNames);
+    const normalized = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const name of disabledNames) {
+      if (!available.has(name) || seen.has(name)) {
+        continue;
+      }
+      seen.add(name);
+      normalized.push(name);
+    }
+    return normalized;
+  }
+  function isHttpUrl(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+  function isBlockedSettingKey(key) {
+    return BLOCKED_SETTING_KEYS.includes(key);
   }
   const TAB_WORK_RESULTS_KEY = "common.work-results.results";
   const state$6 = {
@@ -11629,6 +11689,10 @@ ${content}</tr>
           return {
             getWorkOptions: () => {
               const workOptions = JSON.parse(JSON.stringify(this.cfg));
+              this.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+                this.cfg.disabledAnswererWrapperNames,
+                this.cfg.answererWrappers.map((aw) => aw.name)
+              );
               workOptions.answererWrappers = workOptions.answererWrappers.filter(
                 (aw) => this.cfg.disabledAnswererWrapperNames.find((daw) => daw === aw.name) === void 0
               );
@@ -11641,20 +11705,23 @@ ${content}</tr>
                   extraTitle: opts == null ? void 0 : opts.extraTitle,
                   duration: (_a = opts == null ? void 0 : opts.duration) != null ? _a : 30,
                   important: this.cfg.notification === "all",
-                  silent: this.cfg.notification === "only-notify"
+                  silent: this.cfg.notification === "only-notify",
+                  onclick: opts == null ? void 0 : opts.onclick,
+                  ondone: opts == null ? void 0 : opts.ondone
                 });
                 const message2 = ((opts == null ? void 0 : opts.extraTitle) ? (opts == null ? void 0 : opts.extraTitle) + "：" : "") + content;
-                const webhooks = this.cfg.notificationWebhooks.split("\n").map((i) => i.trim()).filter(Boolean);
-                for (const webhook of webhooks) {
-                  let resolved_webhook = webhook;
-                  resolved_webhook = webhook.replace("${message}", encodeURIComponent(message2));
-                  request(resolved_webhook, {
+                const webhooks = parseNotificationWebhooks(this.cfg.notificationWebhooks, message2);
+                for (const webhook of webhooks.skipped) {
+                  console.debug("通知回调配置已跳过", { webhook });
+                }
+                for (const webhook of webhooks.urls) {
+                  request(webhook, {
                     method: "get",
                     type: "GM_xmlhttpRequest"
                   }).then((result) => {
-                    console.debug("通知回调成功", { webhook: resolved_webhook, result });
+                    console.debug("通知回调成功", { webhook, result });
                   }).catch((err) => {
-                    console.debug("通知回调失败", { webhook: resolved_webhook, err });
+                    console.debug("通知回调失败", { webhook, err });
                   });
                 }
               }
@@ -11708,6 +11775,10 @@ ${content}</tr>
               tableContainer.replaceChildren();
               errorSolveGuide.style.display = "none";
               let loadedCount = 0;
+              this.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+                this.cfg.disabledAnswererWrapperNames,
+                this.cfg.answererWrappers.map((aw) => aw.name)
+              );
               if (this.cfg.answererWrappers.length) {
                 refresh.style.display = "block";
                 tableContainer.style.display = "block";
@@ -12380,13 +12451,7 @@ ${content}</tr>
               },
               (btn) => {
                 btn.onclick = () => {
-                  const setting = /* @__PURE__ */ Object.create({});
-                  for (const key of lib.$store.list()) {
-                    const val = lib.$store.get(key);
-                    if (val) {
-                      Reflect.set(setting, key, val);
-                    }
-                  }
+                  const setting = collectSettingsForExport(lib.$store.list(), (key) => lib.$store.get(key));
                   const blob = new Blob([JSON.stringify(setting, null, 2)], { type: "text/plain" });
                   const url = URL.createObjectURL(blob);
                   const a = lib.h("a", { href: url, download: "ocs-setting-export.ocssetting" });
@@ -12462,6 +12527,10 @@ ${content}</tr>
     document.head.append(style);
   }
   function createAnswererWrapperList(aw) {
+    CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+      CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames,
+      aw.map((item) => item.name)
+    );
     return aw.map(
       (item) => lib.h(
         "details",
@@ -12474,10 +12543,10 @@ ${content}</tr>
                 checkbox.onclick = () => {
                   isDisabled = !isDisabled;
                   if (isDisabled) {
-                    CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames = [
-                      ...CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames,
-                      item.name
-                    ];
+                    CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames = normalizeDisabledAnswererNames(
+                      [...CommonProject.scripts.settings.cfg.disabledAnswererWrapperNames, item.name],
+                      aw.map((answerer) => answerer.name)
+                    );
                     lib.$message.warn({
                       content: "题库：" + item.name + " 已被停用，如需开启请在：通用-全局设置-题库配置中开启。",
                       duration: 30

@@ -19,6 +19,7 @@
 		"format:check": "prettier --config ./.prettierrc.json \"**/*.{ts,js,css}\" --check",
 		"test:quick-api": "node ./scripts/test-quick-api.js",
 		"test:security-stability": "node ./scripts/test-security-stability.js",
+		"test:config-notification": "node ./scripts/test-config-notification.js",
 		"typecheck:core": "tsc -p ./packages/core/tsconfig.json --noEmit --pretty false",
 		"typecheck:scripts": "tsc -p ./packages/scripts/tsconfig.json --noEmit --pretty false",
 		"release": "sh ./scripts/release.sh",
