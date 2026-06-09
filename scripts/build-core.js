@@ -5,7 +5,6 @@ const del = require('del');
 const util = require('util');
 const { version } = require('../package.json');
 const execOut = util.promisify(require('./utils').execOut);
-const { createUserScript } = require('../packages/utils');
 const path = require('path');
 const dotenv = require('dotenv');
 const fs = require('fs');
@@ -15,12 +14,16 @@ dotenv.config();
 const distPath = process.env.BUILD_PATH || '../dist';
 console.log('BUILD_PATH: ', distPath);
 const distResolvedPath = path.resolve(__dirname, distPath);
+process.env.VITE_BUILD_PATH =
+	process.env.VITE_BUILD_PATH || path.relative(path.resolve(__dirname, '../packages/core'), distResolvedPath);
 
 function cleanOutput() {
 	return del([distPath, '../lib'], { force: true });
 }
 
 async function buildPackages() {
+	// @ts-ignore
+	await execOut('tsc', { cwd: '../packages/utils' });
 	// @ts-ignore
 	await execOut('tsc', { cwd: '../packages/core' });
 	// @ts-ignore
@@ -32,6 +35,8 @@ async function buildPackages() {
 }
 
 async function createUserJs() {
+	const { createUserScript } = require('../packages/utils');
+
 	/** 模拟浏览器环境 */
 	require('browser-env')();
 
@@ -73,16 +78,18 @@ async function createUserJs() {
 				name: 'OCS 网课助手',
 				version: version,
 				description: [
-					'OCS(online-course-script) 网课助手，官网 https://docs.ocsjs.com ，专注于帮助大学生从网课中释放出来',
+					'OCS AI Answerer 基于 ocsjs/ocsjs，增加 OpenAI 兼容题库接入能力。',
+					'原 OCS(online-course-script) 网课助手官网 https://docs.ocsjs.com ，专注于帮助大学生从网课中释放出来',
 					'让自己的时间把握在自己的手中，拥有人性化的操作页面，流畅的步骤提示，支持 ',
 					projectList,
 					'等网课的学习，作业。具体的功能请查看脚本悬浮窗中的教程页面。'
 				].join(' '),
-				author: 'enncy',
+				author: ['winter-maple', 'enncy'],
 				license: 'MIT',
-				namespace: 'https://enncy.cn',
-				homepage: 'https://docs.ocsjs.com',
-				source: 'https://github.com/ocsjs/ocsjs',
+				namespace: 'https://github.com/winter-maple/ocs-ai-answerer',
+				homepage: 'https://github.com/winter-maple/ocs-ai-answerer',
+				source: 'https://github.com/winter-maple/ocs-ai-answerer',
+				supportURL: 'https://github.com/winter-maple/ocs-ai-answerer/issues',
 				icon: 'https://cdn.ocsjs.com/logo.png',
 				connect: [
 					'enncy.cn',

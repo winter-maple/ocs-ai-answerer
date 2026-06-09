@@ -1,6 +1,7 @@
+/* eslint-disable no-template-curly-in-string */
 import type { AnswererWrapper } from '@ocsjs/core';
 
-type QuickApiConfig = {
+export type QuickApiConfig = {
 	url: string;
 	key?: string;
 	name?: string;
@@ -11,6 +12,14 @@ type QuickApiConfig = {
 	authPrefix?: string;
 	method?: 'post' | 'get';
 };
+
+type QuickApiConfigInput = Partial<QuickApiConfig> & {
+	baseUrl?: string;
+	token?: string;
+	apiKey?: string;
+};
+
+const DEFAULT_MODEL = 'mimo-v2.5-pro';
 
 const ANSWER_SYSTEM_PROMPT = [
 	'你是一个网课自动答题助手。',
@@ -33,14 +42,24 @@ const ANSWER_JSON_HANDLER_BODY = `
 	const normalize = (value)=>{
 		if (value === undefined || value === null) return '';
 		if (Array.isArray(value)) return value.map(normalize).filter(Boolean).join('#');
+		if (typeof value === 'object') {
+			return normalize(value.answer ?? value.content ?? value.text ?? value.value ?? value.name);
+		}
 		return String(value).trim();
 	};
 
+	const stripMarkdownFence = (text)=>{
+		const trimmed = String(text || '').trim();
+		const fenced = trimmed.match(/^\\\`\\\`\\\`(?:json)?\\s*([\\s\\S]*?)\\s*\\\`\\\`\\\`$/i);
+		return fenced ? fenced[1].trim() : trimmed;
+	};
+
 	const parseJson = (text)=>{
+		const normalizedText = stripMarkdownFence(text);
 		try {
-			return JSON.parse(text);
+			return JSON.parse(normalizedText);
 		} catch {
-			const match = text.match(/\\{[\\s\\S]*\\}/);
+			const match = normalizedText.match(/\\{[\\s\\S]*\\}/);
 			if (!match) return undefined;
 			try {
 				return JSON.parse(match[0]);
@@ -51,13 +70,20 @@ const ANSWER_JSON_HANDLER_BODY = `
 	};
 
 	const parsed = parseJson(content);
-	if (!parsed) return [[content.trim(), content.trim()]];
+	if (!parsed || parsed.error) return undefined;
 
-	const question = normalize(parsed.question || parsed.title || '');
-	const answers = Array.isArray(parsed.answers)
-		? parsed.answers.map((item)=> normalize(item)).filter(Boolean)
-		: normalize(parsed.answer)
-			? [normalize(parsed.answer)]
+	const question = normalize(parsed.question || parsed.title || parsed.data?.question || '');
+	const answerValue =
+		parsed.answers ??
+		parsed.answer ??
+		parsed.data?.answers ??
+		parsed.data?.answer ??
+		parsed.result?.answers ??
+		parsed.result?.answer;
+	const answers = Array.isArray(answerValue)
+		? answerValue.map((item)=> normalize(item)).filter(Boolean)
+		: normalize(answerValue)
+			? [normalize(answerValue)]
 			: [];
 
 	if (answers.length === 0) return undefined;
@@ -66,19 +92,25 @@ const ANSWER_JSON_HANDLER_BODY = `
 
 export function parseQuickApiConfig(raw: string): QuickApiConfig {
 	const text = raw.trim();
-
-	if (text.startsWith('{')) {
-		const parsed = JSON.parse(text) as QuickApiConfig;
-		if (!parsed?.url) {
-			throw new Error('URL+Key 配置缺少 url 字段。');
-		}
-		return parsed;
+	if (!text) {
+		throw new Error('URL+Key 配置不能为空，请至少填写 url。');
 	}
 
-	const config: Partial<QuickApiConfig> = {};
+	if (text.startsWith('{')) {
+		try {
+			return normalizeQuickApiConfig(JSON.parse(text) as QuickApiConfigInput);
+		} catch (error: any) {
+			if (error instanceof SyntaxError) {
+				throw new Error('URL+Key JSON 配置格式错误，请检查是否缺少逗号、引号或右括号。');
+			}
+			throw error;
+		}
+	}
+
+	const config: QuickApiConfigInput = {};
 	for (const line of text.split(/\r?\n/)) {
 		const trimmed = line.trim();
-		if (!trimmed) {
+		if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) {
 			continue;
 		}
 
@@ -90,73 +122,142 @@ export function parseQuickApiConfig(raw: string): QuickApiConfig {
 		const key = matched[1].toLowerCase();
 		const value = matched[2].trim();
 
-		if (key === 'url') {
+		if (['url', 'baseurl', 'base-url', 'base_url'].includes(key)) {
 			config.url = value;
-		} else if (['key', 'token', 'apikey', 'api-key'].includes(key)) {
+		} else if (['key', 'token', 'apikey', 'api-key', 'api_key'].includes(key)) {
 			config.key = value;
 		} else if (key === 'name') {
 			config.name = value;
-		} else if (['model', 'modelname', 'model-name'].includes(key)) {
+		} else if (['model', 'modelname', 'model-name', 'model_name'].includes(key)) {
 			config.model = value;
 		} else if (['api', 'endpoint', 'mode'].includes(key)) {
-			config.api = value.toLowerCase().includes('responses') ? 'responses' : 'chat';
+			config.api = parseApiMode(value);
 		} else if (['homepage', 'home'].includes(key)) {
 			config.homepage = value;
-		} else if (['header', 'keyheader', 'key-header', 'authheader', 'auth-header'].includes(key)) {
+		} else if (['header', 'keyheader', 'key-header', 'key_header', 'authheader', 'auth-header'].includes(key)) {
 			config.keyHeader = value;
-		} else if (['prefix', 'authprefix', 'auth-prefix', 'scheme', 'authorization'].includes(key)) {
+		} else if (['prefix', 'authprefix', 'auth-prefix', 'auth_prefix', 'scheme', 'authorization'].includes(key)) {
 			config.authPrefix = value;
 		} else if (key === 'method') {
-			config.method = value.toLowerCase() === 'get' ? 'get' : 'post';
+			config.method = parseMethod(value);
 		}
 	}
 
-	if (!config.url) {
-		throw new Error(
-			'URL+Key 配置格式错误，请至少填写 url，例如：url: https://example.com/search 和 key: your-key'
-		);
-	}
-
-	return config as QuickApiConfig;
+	return normalizeQuickApiConfig(config);
 }
 
 export function createQuickApiAnswererWrapper(config: QuickApiConfig): AnswererWrapper {
-	if (isResponsesApiQuickApi(config)) {
-		return createResponsesApiAnswererWrapper(config);
+	const normalized = normalizeQuickApiConfig(config);
+
+	if (isResponsesApiQuickApi(normalized)) {
+		return createResponsesApiAnswererWrapper(normalized);
 	}
 
-	if (isOpenAICompatibleQuickApi(config)) {
-		return createOpenAICompatibleAnswererWrapper(config);
+	if (isOpenAICompatibleQuickApi(normalized)) {
+		return createOpenAICompatibleAnswererWrapper(normalized);
 	}
 
-	return createGenericApiAnswererWrapper(config);
+	return createGenericApiAnswererWrapper(normalized);
+}
+
+function normalizeQuickApiConfig(input: QuickApiConfigInput): QuickApiConfig {
+	const config: QuickApiConfigInput = { ...input };
+	config.url = String(config.url || config.baseUrl || '').trim();
+	config.key = optionalString(config.key || config.token || config.apiKey);
+	config.name = optionalString(config.name);
+	config.homepage = optionalString(config.homepage);
+	config.model = optionalString(config.model);
+	config.keyHeader = optionalString(config.keyHeader);
+	config.authPrefix = optionalString(config.authPrefix);
+
+	if (!config.url) {
+		throw new Error('URL+Key 配置缺少 url 字段，例如：url: https://example.com/v1。');
+	}
+
+	validateUrl(config.url, 'url');
+
+	if (config.homepage) {
+		validateUrl(config.homepage, 'homepage');
+	}
+
+	if (config.api !== undefined) {
+		config.api = parseApiMode(config.api);
+	}
+
+	if (config.method !== undefined) {
+		config.method = parseMethod(config.method);
+	}
+
+	if (config.keyHeader && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(config.keyHeader)) {
+		throw new Error('URL+Key 配置中的 keyHeader 不是合法请求头名称，请只使用英文、数字和横线。');
+	}
+
+	return {
+		url: config.url,
+		...(config.key ? { key: config.key } : {}),
+		...(config.name ? { name: config.name } : {}),
+		...(config.homepage ? { homepage: config.homepage } : {}),
+		...(config.model ? { model: config.model } : {}),
+		...(config.api ? { api: config.api } : {}),
+		...(config.keyHeader ? { keyHeader: config.keyHeader } : {}),
+		...(config.authPrefix ? { authPrefix: config.authPrefix } : {}),
+		...(config.method ? { method: config.method } : {})
+	};
+}
+
+function optionalString(value: unknown) {
+	if (value === undefined || value === null) {
+		return undefined;
+	}
+	const text = String(value).trim();
+	return text || undefined;
+}
+
+function validateUrl(value: string, field: 'url' | 'homepage') {
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		throw new Error(`URL+Key 配置中的 ${field} 不是合法 URL，请填写完整地址，例如：https://example.com/v1。`);
+	}
+
+	if (!['http:', 'https:'].includes(parsed.protocol)) {
+		throw new Error(`URL+Key 配置中的 ${field} 只支持 http 或 https 地址。`);
+	}
+}
+
+function parseApiMode(value: unknown): QuickApiConfig['api'] {
+	const text = String(value || '')
+		.trim()
+		.toLowerCase();
+	if (!text) {
+		return undefined;
+	}
+	if (text.includes('responses')) {
+		return 'responses';
+	}
+	if (['chat', 'chat-completions', 'chat_completions', 'completion', 'completions'].includes(text)) {
+		return 'chat';
+	}
+	throw new Error('URL+Key 配置中的 api 只支持 chat 或 responses。');
+}
+
+function parseMethod(value: unknown): QuickApiConfig['method'] {
+	const text = String(value || '')
+		.trim()
+		.toLowerCase();
+	if (!text) {
+		return undefined;
+	}
+	if (text === 'get' || text === 'post') {
+		return text;
+	}
+	throw new Error('URL+Key 配置中的 method 只支持 get 或 post。');
 }
 
 function createGenericApiAnswererWrapper(config: QuickApiConfig): AnswererWrapper {
 	const method = config.method || 'post';
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json'
-	};
-
-	if (config.key) {
-		const prefix =
-			config.authPrefix === undefined
-				? 'Bearer '
-				: ['none', 'raw'].includes(config.authPrefix.toLowerCase())
-					? ''
-					: config.authPrefix.endsWith(' ')
-						? config.authPrefix
-						: config.authPrefix + ' ';
-
-		if (config.keyHeader) {
-			headers[config.keyHeader] = prefix + config.key;
-		} else {
-			headers.Authorization = prefix + config.key;
-			headers['X-API-Key'] = config.key;
-			headers.token = config.key;
-			headers.apikey = config.key;
-		}
-	}
+	const headers = createAuthHeaders(config, true);
 
 	return {
 		name: config.name || 'API题库',
@@ -178,7 +279,7 @@ function createGenericApiAnswererWrapper(config: QuickApiConfig): AnswererWrappe
 							handler:
 								"return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : env.type"
 						}
-					}
+				  }
 				: {
 						question: '${title}',
 						title: '${title}',
@@ -189,14 +290,18 @@ function createGenericApiAnswererWrapper(config: QuickApiConfig): AnswererWrappe
 							handler:
 								"return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : env.type"
 						}
-					},
+				  },
 		handler: `return (res)=>{
-			const question = res?.question || res?.data?.question || '';
+			if (!res || res.error) return undefined;
+
+			const question = res?.question || res?.data?.question || res?.result?.question || '';
 			const toAnswerString = (value)=>{
 				if (value === undefined || value === null) return '';
 				if (Array.isArray(value)) return value.map(toAnswerString).filter(Boolean).join('#');
-				if (typeof value === 'object') return toAnswerString(value.answer ?? value.content ?? value.text ?? value.value);
-				return String(value);
+				if (typeof value === 'object') {
+					return toAnswerString(value.answer ?? value.content ?? value.text ?? value.value ?? value.name);
+				}
+				return String(value).trim();
 			};
 			const answers =
 				res?.answer?.allAnswer ??
@@ -207,6 +312,7 @@ function createGenericApiAnswererWrapper(config: QuickApiConfig): AnswererWrappe
 				res?.answer ??
 				res?.result?.answers ??
 				res?.result?.answer ??
+				res?.data?.result?.answers ??
 				res?.data?.result?.answer;
 
 			if (answers === undefined || answers === null || answers === '') return undefined;
@@ -225,6 +331,7 @@ function createGenericApiAnswererWrapper(config: QuickApiConfig): AnswererWrappe
 				normalized = [toAnswerString(answers)].filter(Boolean);
 			}
 
+			if (normalized.length === 0) return undefined;
 			return normalized.map((answer)=> [question, answer]);
 		}`
 	};
@@ -235,16 +342,12 @@ function isResponsesApiQuickApi(config: QuickApiConfig) {
 }
 
 function isOpenAICompatibleQuickApi(config: QuickApiConfig) {
-	return (
-		Boolean(config.model) ||
-		/chat\/completions\/?$/i.test(config.url) ||
-		/\/v\d+(?:\.\d+)?\/?$/i.test(config.url)
-	);
+	return Boolean(config.model) || /chat\/completions\/?$/i.test(config.url) || /\/v\d+(?:\.\d+)?\/?$/i.test(config.url);
 }
 
 function createResponsesApiAnswererWrapper(config: QuickApiConfig): AnswererWrapper {
 	const url = /responses\/?$/i.test(config.url) ? config.url : config.url.replace(/\/$/, '') + '/responses';
-	const headers = createBearerHeaders(config);
+	const headers = createAuthHeaders(config);
 
 	return {
 		name: config.name || 'Responses兼容题库',
@@ -255,7 +358,7 @@ function createResponsesApiAnswererWrapper(config: QuickApiConfig): AnswererWrap
 		contentType: 'json',
 		headers,
 		data: {
-			model: config.model || 'mimo-v2.5-pro',
+			model: config.model || DEFAULT_MODEL,
 			temperature: 0.2,
 			instructions: ANSWER_SYSTEM_PROMPT.join('\n'),
 			input: {
@@ -263,6 +366,8 @@ function createResponsesApiAnswererWrapper(config: QuickApiConfig): AnswererWrap
 			}
 		},
 		handler: `return (res)=>{
+			if (!res || res.error) return undefined;
+
 			const extractText = (value)=>{
 				if (!value) return '';
 				if (typeof value === 'string') return value;
@@ -274,8 +379,10 @@ function createResponsesApiAnswererWrapper(config: QuickApiConfig): AnswererWrap
 						value.text ??
 						value.value ??
 						value.content ??
+						value.message?.content ??
 						value.message ??
 						value.output ??
+						value.response ??
 						value.choices?.[0]?.message?.content
 					);
 				}
@@ -287,7 +394,9 @@ function createResponsesApiAnswererWrapper(config: QuickApiConfig): AnswererWrap
 				res?.output ??
 				res?.data?.output ??
 				res?.content ??
+				res?.message?.content ??
 				res?.message ??
+				res?.response ??
 				res?.choices?.[0]?.message?.content
 			);
 			if (!content || typeof content !== 'string') return undefined;
@@ -301,7 +410,7 @@ function createOpenAICompatibleAnswererWrapper(config: QuickApiConfig): Answerer
 	const url = /chat\/completions\/?$/i.test(config.url)
 		? config.url
 		: config.url.replace(/\/$/, '') + '/chat/completions';
-	const headers = createBearerHeaders(config);
+	const headers = createAuthHeaders(config);
 
 	return {
 		name: config.name || 'OpenAI兼容题库',
@@ -312,7 +421,7 @@ function createOpenAICompatibleAnswererWrapper(config: QuickApiConfig): Answerer
 		contentType: 'json',
 		headers,
 		data: {
-			model: config.model || 'mimo-v2.5-pro',
+			model: config.model || DEFAULT_MODEL,
 			temperature: 0.2,
 			messages: {
 				handler: `return (env)=>[
@@ -333,7 +442,9 @@ function createOpenAICompatibleAnswererWrapper(config: QuickApiConfig): Answerer
 			}
 		},
 		handler: `return (res)=>{
-			const content = res?.choices?.[0]?.message?.content;
+			if (!res || res.error) return undefined;
+
+			const content = res?.choices?.[0]?.message?.content ?? res?.data?.choices?.[0]?.message?.content;
 			if (!content || typeof content !== 'string') return undefined;
 
 			${ANSWER_JSON_HANDLER_BODY}
@@ -341,18 +452,45 @@ function createOpenAICompatibleAnswererWrapper(config: QuickApiConfig): Answerer
 	};
 }
 
-function createBearerHeaders(config: QuickApiConfig) {
+function createAuthHeaders(config: QuickApiConfig, includeGenericAliases = false) {
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json'
 	};
 
-	if (config.key) {
-		if (config.keyHeader) {
-			headers[config.keyHeader] = config.key;
-		} else {
-			headers.Authorization = `Bearer ${config.key}`;
-		}
+	if (!config.key) {
+		return headers;
+	}
+
+	const prefixedKey = formatAuthValue(config);
+	if (config.keyHeader) {
+		headers[config.keyHeader] = prefixedKey;
+		return headers;
+	}
+
+	headers.Authorization = prefixedKey;
+
+	if (includeGenericAliases) {
+		headers['X-API-Key'] = config.key;
+		headers.token = config.key;
+		headers.apikey = config.key;
 	}
 
 	return headers;
+}
+
+function formatAuthValue(config: QuickApiConfig) {
+	if (!config.key) {
+		return '';
+	}
+
+	if (config.authPrefix === undefined) {
+		return `Bearer ${config.key}`;
+	}
+
+	const prefix = config.authPrefix.trim();
+	if (['none', 'raw'].includes(prefix.toLowerCase())) {
+		return config.key;
+	}
+
+	return `${prefix} ${config.key}`;
 }

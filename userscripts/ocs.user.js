@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name       				OCS 网课助手
 // @version    				4.13.19
-// @description				OCS(online-course-script) 网课助手，官网 https://docs.ocsjs.com ，专注于帮助大学生从网课中释放出来 让自己的时间把握在自己的手中，拥有人性化的操作页面，流畅的步骤提示，支持  【超星学习通】 【知到智慧树】 【职教云】 【智慧职教】 【中国大学MOOC】 【雨课堂】 等网课的学习，作业。具体的功能请查看脚本悬浮窗中的教程页面。
+// @description				OCS AI Answerer 基于 ocsjs/ocsjs，增加 OpenAI 兼容题库接入能力。 原 OCS(online-course-script) 网课助手官网 https://docs.ocsjs.com ，专注于帮助大学生从网课中释放出来 让自己的时间把握在自己的手中，拥有人性化的操作页面，流畅的步骤提示，支持  【超星学习通】 【知到智慧树】 【职教云】 【智慧职教】 【中国大学MOOC】 【雨课堂】 等网课的学习，作业。具体的功能请查看脚本悬浮窗中的教程页面。
+// @author     				winter-maple
 // @author     				enncy
 // @license    				MIT
 // @match      				*://*.zhihuishu.com/*
@@ -49,11 +50,10 @@
 // @grant      				GM_addValueChangeListener
 // @grant      				GM_removeValueChangeListener
 // @run-at     				document-start
-// @namespace  				https://enncy.cn
-// @homepage   				https://docs.ocsjs.com
-// @source     				https://github.com/ocsjs/ocsjs
-// @downloadURL				https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.user.js
-// @updateURL  				https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.user.js
+// @namespace  				https://github.com/winter-maple/ocs-ai-answerer
+// @homepage   				https://github.com/winter-maple/ocs-ai-answerer
+// @source     				https://github.com/winter-maple/ocs-ai-answerer
+// @supportURL 				https://github.com/winter-maple/ocs-ai-answerer/issues
 // @icon       				https://cdn.ocsjs.com/logo.png
 // @connect    				enncy.cn
 // @connect    				icodef.com
@@ -64,6 +64,8 @@
 // @connect    				localhost
 // @connect    				127.0.0.1
 // @antifeature				payment
+// @downloadURL				https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.user.js
+// @updateURL  				https://raw.githubusercontent.com/winter-maple/ocs-ai-answerer/main/userscripts/ocs.user.js
 // ==/UserScript==
 
 var __defProp = Object.defineProperty;
@@ -10453,6 +10455,425 @@ ${content}</tr>
       });
     }
   };
+  const DEFAULT_MODEL = "mimo-v2.5-pro";
+  const ANSWER_SYSTEM_PROMPT = [
+    "你是一个网课自动答题助手。",
+    "请根据题目类型和选项直接给出最可能正确的答案。",
+    "必须只返回 JSON，不要输出 markdown，不要解释，不要多余文本。",
+    'JSON 格式固定为：{"question":"题目","answers":["答案1","答案2"]}。',
+    "单选题和判断题只返回 1 个答案。",
+    "多选题返回多个答案，每个答案单独放在 answers 数组里。",
+    "如果有选项，尽量返回与选项文字完全一致的答案文本，不要只返回字母。"
+  ];
+  const QUESTION_INPUT_HANDLER = `return (env)=>[
+	'题目类型：' + (env.type || 'unknown'),
+	'题目：' + (env.title || ''),
+	'选项：',
+	env.options || '无'
+].join('\\n')`;
+  const ANSWER_JSON_HANDLER_BODY = `
+	const normalize = (value)=>{
+		if (value === undefined || value === null) return '';
+		if (Array.isArray(value)) return value.map(normalize).filter(Boolean).join('#');
+		if (typeof value === 'object') {
+			return normalize(value.answer ?? value.content ?? value.text ?? value.value ?? value.name);
+		}
+		return String(value).trim();
+	};
+
+	const stripMarkdownFence = (text)=>{
+		const trimmed = String(text || '').trim();
+		const fenced = trimmed.match(/^\\\`\\\`\\\`(?:json)?\\s*([\\s\\S]*?)\\s*\\\`\\\`\\\`$/i);
+		return fenced ? fenced[1].trim() : trimmed;
+	};
+
+	const parseJson = (text)=>{
+		const normalizedText = stripMarkdownFence(text);
+		try {
+			return JSON.parse(normalizedText);
+		} catch {
+			const match = normalizedText.match(/\\{[\\s\\S]*\\}/);
+			if (!match) return undefined;
+			try {
+				return JSON.parse(match[0]);
+			} catch {
+				return undefined;
+			}
+		}
+	};
+
+	const parsed = parseJson(content);
+	if (!parsed || parsed.error) return undefined;
+
+	const question = normalize(parsed.question || parsed.title || parsed.data?.question || '');
+	const answerValue =
+		parsed.answers ??
+		parsed.answer ??
+		parsed.data?.answers ??
+		parsed.data?.answer ??
+		parsed.result?.answers ??
+		parsed.result?.answer;
+	const answers = Array.isArray(answerValue)
+		? answerValue.map((item)=> normalize(item)).filter(Boolean)
+		: normalize(answerValue)
+			? [normalize(answerValue)]
+			: [];
+
+	if (answers.length === 0) return undefined;
+	return answers.map((answer)=> [question, answer]);
+`;
+  function parseQuickApiConfig(raw) {
+    const text = raw.trim();
+    if (!text) {
+      throw new Error("URL+Key 配置不能为空，请至少填写 url。");
+    }
+    if (text.startsWith("{")) {
+      try {
+        return normalizeQuickApiConfig(JSON.parse(text));
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          throw new Error("URL+Key JSON 配置格式错误，请检查是否缺少逗号、引号或右括号。");
+        }
+        throw error;
+      }
+    }
+    const config2 = {};
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) {
+        continue;
+      }
+      const matched = trimmed.match(/^([\w-]+)\s*[:：]\s*(.+)$/);
+      if (!matched) {
+        continue;
+      }
+      const key = matched[1].toLowerCase();
+      const value = matched[2].trim();
+      if (["url", "baseurl", "base-url", "base_url"].includes(key)) {
+        config2.url = value;
+      } else if (["key", "token", "apikey", "api-key", "api_key"].includes(key)) {
+        config2.key = value;
+      } else if (key === "name") {
+        config2.name = value;
+      } else if (["model", "modelname", "model-name", "model_name"].includes(key)) {
+        config2.model = value;
+      } else if (["api", "endpoint", "mode"].includes(key)) {
+        config2.api = parseApiMode(value);
+      } else if (["homepage", "home"].includes(key)) {
+        config2.homepage = value;
+      } else if (["header", "keyheader", "key-header", "key_header", "authheader", "auth-header"].includes(key)) {
+        config2.keyHeader = value;
+      } else if (["prefix", "authprefix", "auth-prefix", "auth_prefix", "scheme", "authorization"].includes(key)) {
+        config2.authPrefix = value;
+      } else if (key === "method") {
+        config2.method = parseMethod(value);
+      }
+    }
+    return normalizeQuickApiConfig(config2);
+  }
+  function createQuickApiAnswererWrapper(config2) {
+    const normalized = normalizeQuickApiConfig(config2);
+    if (isResponsesApiQuickApi(normalized)) {
+      return createResponsesApiAnswererWrapper(normalized);
+    }
+    if (isOpenAICompatibleQuickApi(normalized)) {
+      return createOpenAICompatibleAnswererWrapper(normalized);
+    }
+    return createGenericApiAnswererWrapper(normalized);
+  }
+  function normalizeQuickApiConfig(input) {
+    const config2 = { ...input };
+    config2.url = String(config2.url || config2.baseUrl || "").trim();
+    config2.key = optionalString(config2.key || config2.token || config2.apiKey);
+    config2.name = optionalString(config2.name);
+    config2.homepage = optionalString(config2.homepage);
+    config2.model = optionalString(config2.model);
+    config2.keyHeader = optionalString(config2.keyHeader);
+    config2.authPrefix = optionalString(config2.authPrefix);
+    if (!config2.url) {
+      throw new Error("URL+Key 配置缺少 url 字段，例如：url: https://example.com/v1。");
+    }
+    validateUrl(config2.url, "url");
+    if (config2.homepage) {
+      validateUrl(config2.homepage, "homepage");
+    }
+    if (config2.api !== void 0) {
+      config2.api = parseApiMode(config2.api);
+    }
+    if (config2.method !== void 0) {
+      config2.method = parseMethod(config2.method);
+    }
+    if (config2.keyHeader && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(config2.keyHeader)) {
+      throw new Error("URL+Key 配置中的 keyHeader 不是合法请求头名称，请只使用英文、数字和横线。");
+    }
+    return {
+      url: config2.url,
+      ...config2.key ? { key: config2.key } : {},
+      ...config2.name ? { name: config2.name } : {},
+      ...config2.homepage ? { homepage: config2.homepage } : {},
+      ...config2.model ? { model: config2.model } : {},
+      ...config2.api ? { api: config2.api } : {},
+      ...config2.keyHeader ? { keyHeader: config2.keyHeader } : {},
+      ...config2.authPrefix ? { authPrefix: config2.authPrefix } : {},
+      ...config2.method ? { method: config2.method } : {}
+    };
+  }
+  function optionalString(value) {
+    if (value === void 0 || value === null) {
+      return void 0;
+    }
+    const text = String(value).trim();
+    return text || void 0;
+  }
+  function validateUrl(value, field) {
+    let parsed;
+    try {
+      parsed = new URL(value);
+    } catch {
+      throw new Error(`URL+Key 配置中的 ${field} 不是合法 URL，请填写完整地址，例如：https://example.com/v1。`);
+    }
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error(`URL+Key 配置中的 ${field} 只支持 http 或 https 地址。`);
+    }
+  }
+  function parseApiMode(value) {
+    const text = String(value || "").trim().toLowerCase();
+    if (!text) {
+      return void 0;
+    }
+    if (text.includes("responses")) {
+      return "responses";
+    }
+    if (["chat", "chat-completions", "chat_completions", "completion", "completions"].includes(text)) {
+      return "chat";
+    }
+    throw new Error("URL+Key 配置中的 api 只支持 chat 或 responses。");
+  }
+  function parseMethod(value) {
+    const text = String(value || "").trim().toLowerCase();
+    if (!text) {
+      return void 0;
+    }
+    if (text === "get" || text === "post") {
+      return text;
+    }
+    throw new Error("URL+Key 配置中的 method 只支持 get 或 post。");
+  }
+  function createGenericApiAnswererWrapper(config2) {
+    const method = config2.method || "post";
+    const headers = createAuthHeaders(config2, true);
+    return {
+      name: config2.name || "API题库",
+      url: config2.url,
+      homepage: config2.homepage || new URL(config2.url).origin,
+      method,
+      type: "GM_xmlhttpRequest",
+      contentType: "json",
+      headers,
+      data: method === "get" ? {
+        question: "${title}",
+        title: "${title}",
+        options: {
+          handler: "return (env)=>env.options ? env.options.split('\\n').filter(Boolean).join('#') : ''"
+        },
+        type: {
+          handler: "return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : env.type"
+        }
+      } : {
+        question: "${title}",
+        title: "${title}",
+        options: {
+          handler: "return (env)=>env.options ? env.options.split('\\n').filter(Boolean) : []"
+        },
+        type: {
+          handler: "return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : env.type"
+        }
+      },
+      handler: `return (res)=>{
+			if (!res || res.error) return undefined;
+
+			const question = res?.question || res?.data?.question || res?.result?.question || '';
+			const toAnswerString = (value)=>{
+				if (value === undefined || value === null) return '';
+				if (Array.isArray(value)) return value.map(toAnswerString).filter(Boolean).join('#');
+				if (typeof value === 'object') {
+					return toAnswerString(value.answer ?? value.content ?? value.text ?? value.value ?? value.name);
+				}
+				return String(value).trim();
+			};
+			const answers =
+				res?.answer?.allAnswer ??
+				res?.data?.answer?.allAnswer ??
+				res?.data?.answers ??
+				res?.answers ??
+				res?.data?.answer ??
+				res?.answer ??
+				res?.result?.answers ??
+				res?.result?.answer ??
+				res?.data?.result?.answers ??
+				res?.data?.result?.answer;
+
+			if (answers === undefined || answers === null || answers === '') return undefined;
+
+			let normalized;
+			if (Array.isArray(answers)) {
+				if (answers.length === 0) return undefined;
+				if (answers.every((item)=> Array.isArray(item))) {
+					normalized = answers.map((item)=> toAnswerString(item)).filter(Boolean);
+				} else if (answers.every((item)=> typeof item !== 'object' || item === null)) {
+					normalized = [toAnswerString(answers)].filter(Boolean);
+				} else {
+					normalized = answers.map((item)=> toAnswerString(item)).filter(Boolean);
+				}
+			} else {
+				normalized = [toAnswerString(answers)].filter(Boolean);
+			}
+
+			if (normalized.length === 0) return undefined;
+			return normalized.map((answer)=> [question, answer]);
+		}`
+    };
+  }
+  function isResponsesApiQuickApi(config2) {
+    return String(config2.api || "").toLowerCase() === "responses" || /responses\/?$/i.test(config2.url);
+  }
+  function isOpenAICompatibleQuickApi(config2) {
+    return Boolean(config2.model) || /chat\/completions\/?$/i.test(config2.url) || /\/v\d+(?:\.\d+)?\/?$/i.test(config2.url);
+  }
+  function createResponsesApiAnswererWrapper(config2) {
+    const url = /responses\/?$/i.test(config2.url) ? config2.url : config2.url.replace(/\/$/, "") + "/responses";
+    const headers = createAuthHeaders(config2);
+    return {
+      name: config2.name || "Responses兼容题库",
+      url,
+      homepage: config2.homepage || new URL(config2.url).origin,
+      method: "post",
+      type: "GM_xmlhttpRequest",
+      contentType: "json",
+      headers,
+      data: {
+        model: config2.model || DEFAULT_MODEL,
+        temperature: 0.2,
+        instructions: ANSWER_SYSTEM_PROMPT.join("\n"),
+        input: {
+          handler: QUESTION_INPUT_HANDLER
+        }
+      },
+      handler: `return (res)=>{
+			if (!res || res.error) return undefined;
+
+			const extractText = (value)=>{
+				if (!value) return '';
+				if (typeof value === 'string') return value;
+				if (Array.isArray(value)) return value.map(extractText).filter(Boolean).join('\\n');
+				if (typeof value === 'object') {
+					return extractText(
+						value.output_text ??
+						value.data?.output_text ??
+						value.text ??
+						value.value ??
+						value.content ??
+						value.message?.content ??
+						value.message ??
+						value.output ??
+						value.response ??
+						value.choices?.[0]?.message?.content
+					);
+				}
+				return String(value);
+			};
+			const content = extractText(
+				res?.output_text ??
+				res?.data?.output_text ??
+				res?.output ??
+				res?.data?.output ??
+				res?.content ??
+				res?.message?.content ??
+				res?.message ??
+				res?.response ??
+				res?.choices?.[0]?.message?.content
+			);
+			if (!content || typeof content !== 'string') return undefined;
+
+			${ANSWER_JSON_HANDLER_BODY}
+		}`
+    };
+  }
+  function createOpenAICompatibleAnswererWrapper(config2) {
+    const url = /chat\/completions\/?$/i.test(config2.url) ? config2.url : config2.url.replace(/\/$/, "") + "/chat/completions";
+    const headers = createAuthHeaders(config2);
+    return {
+      name: config2.name || "OpenAI兼容题库",
+      url,
+      homepage: config2.homepage || new URL(config2.url).origin,
+      method: "post",
+      type: "GM_xmlhttpRequest",
+      contentType: "json",
+      headers,
+      data: {
+        model: config2.model || DEFAULT_MODEL,
+        temperature: 0.2,
+        messages: {
+          handler: `return (env)=>[
+					{
+						role: 'system',
+						content: ${JSON.stringify(ANSWER_SYSTEM_PROMPT.join("\n"))}
+					},
+					{
+						role: 'user',
+						content: [
+							'题目类型：' + (env.type || 'unknown'),
+							'题目：' + (env.title || ''),
+							'选项：',
+							env.options || '无'
+						].join('\\n')
+					}
+				]`
+        }
+      },
+      handler: `return (res)=>{
+			if (!res || res.error) return undefined;
+
+			const content = res?.choices?.[0]?.message?.content ?? res?.data?.choices?.[0]?.message?.content;
+			if (!content || typeof content !== 'string') return undefined;
+
+			${ANSWER_JSON_HANDLER_BODY}
+		}`
+    };
+  }
+  function createAuthHeaders(config2, includeGenericAliases = false) {
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    if (!config2.key) {
+      return headers;
+    }
+    const prefixedKey = formatAuthValue(config2);
+    if (config2.keyHeader) {
+      headers[config2.keyHeader] = prefixedKey;
+      return headers;
+    }
+    headers.Authorization = prefixedKey;
+    if (includeGenericAliases) {
+      headers["X-API-Key"] = config2.key;
+      headers.token = config2.key;
+      headers.apikey = config2.key;
+    }
+    return headers;
+  }
+  function formatAuthValue(config2) {
+    if (!config2.key) {
+      return "";
+    }
+    if (config2.authPrefix === void 0) {
+      return `Bearer ${config2.key}`;
+    }
+    const prefix = config2.authPrefix.trim();
+    if (["none", "raw"].includes(prefix.toLowerCase())) {
+      return config2.key;
+    }
+    return `${prefix} ${config2.key}`;
+  }
   const TAB_WORK_RESULTS_KEY = "common.work-results.results";
   const state$6 = {
     workResult: {
@@ -10641,15 +11062,16 @@ ${content}</tr>
                     ],
                     [lib.h("div", { className: "secondary" }, "⚠️ 配置第三方题库出现网页弹窗的，点击永久允许连接。")],
                     [
-                      lib.h(
-                        "div",
-                        { className: "secondary" },
-                        [
-                          "OpenAI-compatible /v1 API can use ",
-                          lib.h("b", "URL+Key"),
-                          " parser. Example: url: https://token-plan-cn.xiaomimimo.com/v1  key: sk-xxx  model: mimo-v2.5-pro"
-                        ]
-                      )
+                      lib.h("div", { className: "secondary" }, [
+                        "OpenAI 兼容接口请使用 ",
+                        lib.h("b", "URL+Key"),
+                        " 解析器。支持 url: https://example.com/v1、url: https://example.com/v1/chat/completions、url: https://example.com/v1/responses。"
+                      ])
+                    ],
+                    [
+                      lib.h("div", { className: "secondary" }, [
+                        "示例：url: https://token-plan-cn.xiaomimimo.com/v1  key: sk-xxx  model: mimo-v2.5-pro。多个配置仍使用 ### 分隔。"
+                      ])
                     ],
                     ...aw.length ? [list] : []
                   ]),
@@ -10752,7 +11174,11 @@ ${content}</tr>
                                 });
                               } else if (select.value === "URL+Key") {
                                 const contents = value.split("###").map((i) => i.trim()).filter(Boolean);
-                                awsResult.push(...contents.map((content) => createQuickApiAnswererWrapper(parseQuickApiConfig(content))));
+                                awsResult.push(
+                                  ...contents.map(
+                                    (content) => createQuickApiAnswererWrapper(parseQuickApiConfig(content))
+                                  )
+                                );
                               } else {
                                 const contents = value.split("###").map((i) => i.trim()).filter(Boolean);
                                 for (const content of contents) {
@@ -11889,342 +12315,6 @@ ${content}</tr>
 		}`;
     document.head.append(style);
   }
-  function parseQuickApiConfig(raw) {
-    const text = raw.trim();
-    if (text.startsWith("{")) {
-      const parsed = JSON.parse(text);
-      if (!(parsed == null ? void 0 : parsed.url)) {
-        throw new Error("URL+Key 配置缺少 url 字段。");
-      }
-      return parsed;
-    }
-    const config2 = {};
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
-      }
-      const matched = trimmed.match(/^([\w-]+)\s*[:：]\s*(.+)$/);
-      if (!matched) {
-        continue;
-      }
-      const key = matched[1].toLowerCase();
-      const value = matched[2].trim();
-      if (key === "url") {
-        config2.url = value;
-      } else if (["key", "token", "apikey", "api-key"].includes(key)) {
-        config2.key = value;
-      } else if (key === "name") {
-        config2.name = value;
-      } else if (["model", "modelname", "model-name"].includes(key)) {
-        config2.model = value;
-      } else if (["api", "endpoint", "mode"].includes(key)) {
-        config2.api = value.toLowerCase().includes("responses") ? "responses" : "chat";
-      } else if (["homepage", "home"].includes(key)) {
-        config2.homepage = value;
-      } else if (["header", "keyheader", "key-header", "authheader", "auth-header"].includes(key)) {
-        config2.keyHeader = value;
-      } else if (["prefix", "authprefix", "auth-prefix", "scheme", "authorization"].includes(key)) {
-        config2.authPrefix = value;
-      } else if (key === "method") {
-        config2.method = value.toLowerCase() === "get" ? "get" : "post";
-      }
-    }
-    if (!config2.url) {
-      throw new Error(
-        "URL+Key 配置格式错误，请至少填写 url，例如：url: https://example.com/search 和 key: your-key"
-      );
-    }
-    return config2;
-  }
-  function createQuickApiAnswererWrapper(config2) {
-    if (isResponsesApiQuickApi(config2)) {
-      return createResponsesApiAnswererWrapper(config2);
-    }
-    if (isOpenAICompatibleQuickApi(config2)) {
-      return createOpenAICompatibleAnswererWrapper(config2);
-    }
-    const method = config2.method || "post";
-    const headers = {
-      "Content-Type": "application/json"
-    };
-    if (config2.key) {
-      const prefix = config2.authPrefix === void 0 ? "Bearer " : ["none", "raw"].includes(config2.authPrefix.toLowerCase()) ? "" : config2.authPrefix.endsWith(" ") ? config2.authPrefix : config2.authPrefix + " ";
-      if (config2.keyHeader) {
-        headers[config2.keyHeader] = prefix + config2.key;
-      } else {
-        headers.Authorization = prefix + config2.key;
-        headers["X-API-Key"] = config2.key;
-        headers.token = config2.key;
-        headers.apikey = config2.key;
-      }
-    }
-    return {
-      name: config2.name || "API题库",
-      url: config2.url,
-      homepage: config2.homepage || new URL(config2.url).origin,
-      method,
-      type: "GM_xmlhttpRequest",
-      contentType: "json",
-      headers,
-      data: method === "get" ? {
-        question: "${title}",
-        title: "${title}",
-        options: {
-          handler: "return (env)=>env.options ? env.options.split('\\n').filter(Boolean).join('#') : ''"
-        },
-        type: {
-          handler: "return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : env.type"
-        }
-      } : {
-        question: "${title}",
-        title: "${title}",
-        options: {
-          handler: "return (env)=>env.options ? env.options.split('\\n').filter(Boolean) : []"
-        },
-        type: {
-          handler: "return (env)=> env.type === 'single' ? 0 : env.type === 'multiple' ? 1 : env.type === 'completion' ? 3 : env.type === 'judgement' ? 4 : env.type"
-        }
-      },
-      handler: `return (res)=>{
-			const question = res?.question || res?.data?.question || '';
-			const toAnswerString = (value)=>{
-				if (value === undefined || value === null) return '';
-				if (Array.isArray(value)) return value.map(toAnswerString).filter(Boolean).join('#');
-				if (typeof value === 'object') return toAnswerString(value.answer ?? value.content ?? value.text ?? value.value);
-				return String(value);
-			};
-			const answers =
-				res?.answer?.allAnswer ??
-				res?.data?.answer?.allAnswer ??
-				res?.data?.answers ??
-				res?.answers ??
-				res?.data?.answer ??
-				res?.answer ??
-				res?.result?.answers ??
-				res?.result?.answer ??
-				res?.data?.result?.answer;
-
-			if (answers === undefined || answers === null || answers === '') return undefined;
-
-			let normalized;
-			if (Array.isArray(answers)) {
-				if (answers.length === 0) return undefined;
-				if (answers.every((item)=> Array.isArray(item))) {
-					normalized = answers.map((item)=> toAnswerString(item)).filter(Boolean);
-				} else if (answers.every((item)=> typeof item !== 'object' || item === null)) {
-					normalized = [toAnswerString(answers)].filter(Boolean);
-				} else {
-					normalized = answers.map((item)=> toAnswerString(item)).filter(Boolean);
-				}
-			} else {
-				normalized = [toAnswerString(answers)].filter(Boolean);
-			}
-
-			return normalized.map((answer)=> [question, answer]);
-      }`
-    };
-  }
-  function isResponsesApiQuickApi(config2) {
-    return String(config2.api || "").toLowerCase() === "responses" || /responses\/?$/i.test(config2.url);
-  }
-  function isOpenAICompatibleQuickApi(config2) {
-    return Boolean(config2.model) || /chat\/completions\/?$/i.test(config2.url) || /\/v\d+(?:\.\d+)?\/?$/i.test(config2.url);
-  }
-  function createResponsesApiAnswererWrapper(config2) {
-    const url = /responses\/?$/i.test(config2.url) ? config2.url : config2.url.replace(/\/$/, "") + "/responses";
-    const headers = {
-      "Content-Type": "application/json"
-    };
-    if (config2.key) {
-      if (config2.keyHeader) {
-        headers[config2.keyHeader] = config2.key;
-      } else {
-        headers.Authorization = `Bearer ${config2.key}`;
-      }
-    }
-    return {
-      name: config2.name || "Responses兼容题库",
-      url,
-      homepage: config2.homepage || new URL(config2.url).origin,
-      method: "post",
-      type: "GM_xmlhttpRequest",
-      contentType: "json",
-      headers,
-      data: {
-        model: config2.model || "mimo-v2.5-pro",
-        temperature: 0.2,
-        instructions: [
-          "你是一个网课自动答题助手。",
-          "请根据题目类型和选项直接给出最可能正确的答案。",
-          "必须只返回 JSON，不要输出 markdown，不要解释，不要多余文本。",
-          'JSON 格式固定为：{"question":"题目","answers":["答案1","答案2"]}。',
-          "单选题和判断题只返回 1 个答案。",
-          "多选题返回多个答案，每个答案单独放在 answers 数组里。",
-          "如果有选项，尽量返回与选项文字完全一致的答案文本，不要只返回字母。"
-        ].join("\n"),
-        input: {
-          handler: `return (env)=>[
-					'题目类型：' + (env.type || 'unknown'),
-					'题目：' + (env.title || ''),
-					'选项：',
-					env.options || '无'
-				].join('\\n')`
-        }
-      },
-      handler: `return (res)=>{
-			const extractText = (value)=>{
-				if (!value) return '';
-				if (typeof value === 'string') return value;
-				if (Array.isArray(value)) return value.map(extractText).filter(Boolean).join('\\n');
-				if (typeof value === 'object') {
-					return extractText(
-						value.output_text ??
-						value.data?.output_text ??
-						value.text ??
-						value.value ??
-						value.content ??
-						value.message ??
-						value.output ??
-						value.choices?.[0]?.message?.content
-					);
-				}
-				return String(value);
-			};
-			const content = extractText(
-				res?.output_text ??
-				res?.data?.output_text ??
-				res?.output ??
-				res?.data?.output ??
-				res?.content ??
-				res?.message ??
-				res?.choices?.[0]?.message?.content
-			);
-			if (!content || typeof content !== 'string') return undefined;
-
-			const normalize = (value)=>{
-				if (value === undefined || value === null) return '';
-				if (Array.isArray(value)) return value.map(normalize).filter(Boolean).join('#');
-				return String(value).trim();
-			};
-
-			const parseJson = (text)=>{
-				try {
-					return JSON.parse(text);
-				} catch {
-					const match = text.match(/\\{[\\s\\S]*\\}/);
-					if (!match) return undefined;
-					try {
-						return JSON.parse(match[0]);
-					} catch {
-						return undefined;
-					}
-				}
-			};
-
-			const parsed = parseJson(content);
-			if (!parsed) return [[content.trim(), content.trim()]];
-
-			const question = normalize(parsed.question || parsed.title || '');
-			const answers = Array.isArray(parsed.answers)
-				? parsed.answers.map((item)=> normalize(item)).filter(Boolean)
-				: normalize(parsed.answer)
-					? [normalize(parsed.answer)]
-					: [];
-
-			if (answers.length === 0) return undefined;
-			return answers.map((answer)=> [question, answer]);
-		}`
-    };
-  }
-  function createOpenAICompatibleAnswererWrapper(config2) {
-    const url = /chat\/completions\/?$/i.test(config2.url) ? config2.url : config2.url.replace(/\/$/, "") + "/chat/completions";
-    const headers = {
-      "Content-Type": "application/json"
-    };
-    if (config2.key) {
-      if (config2.keyHeader) {
-        headers[config2.keyHeader] = config2.key;
-      } else {
-        headers.Authorization = `Bearer ${config2.key}`;
-      }
-    }
-    return {
-      name: config2.name || "OpenAI兼容题库",
-      url,
-      homepage: config2.homepage || new URL(config2.url).origin,
-      method: "post",
-      type: "GM_xmlhttpRequest",
-      contentType: "json",
-      headers,
-      data: {
-        model: config2.model || "mimo-v2.5-pro",
-        temperature: 0.2,
-        messages: {
-          handler: `return (env)=>[
-					{
-						role: 'system',
-						content: [
-							'你是一个网课自动答题助手。',
-							'请根据题目类型和选项直接给出最可能正确的答案。',
-							'必须只返回 JSON，不要输出 markdown，不要解释，不要多余文本。',
-							'JSON 格式固定为：{"question":"题目","answers":["答案1","答案2"]}。',
-							'单选题和判断题只返回 1 个答案。',
-							'多选题返回多个答案，每个答案单独放在 answers 数组里。',
-							'如果有选项，尽量返回与选项文字完全一致的答案文本，不要只返回字母。'
-						].join('\\n')
-					},
-					{
-						role: 'user',
-						content: [
-							'题目类型：' + (env.type || 'unknown'),
-							'题目：' + (env.title || ''),
-							'选项：',
-							env.options || '无'
-						].join('\\n')
-					}
-				]`
-        }
-      },
-      handler: `return (res)=>{
-			const content = res?.choices?.[0]?.message?.content;
-			if (!content || typeof content !== 'string') return undefined;
-
-			const normalize = (value)=>{
-				if (value === undefined || value === null) return '';
-				if (Array.isArray(value)) return value.map(normalize).filter(Boolean).join('#');
-				return String(value).trim();
-			};
-
-			const parseJson = (text)=>{
-				try {
-					return JSON.parse(text);
-				} catch {
-					const match = text.match(/\\{[\\s\\S]*\\}/);
-					if (!match) return undefined;
-					try {
-						return JSON.parse(match[0]);
-					} catch {
-						return undefined;
-					}
-				}
-			};
-
-			const parsed = parseJson(content);
-			if (!parsed) return [[content.trim(), content.trim()]];
-
-			const question = normalize(parsed.question || parsed.title || '');
-			const answers = Array.isArray(parsed.answers)
-				? parsed.answers.map((item)=> normalize(item)).filter(Boolean)
-				: normalize(parsed.answer)
-					? [normalize(parsed.answer)]
-					: [];
-
-			if (answers.length === 0) return undefined;
-			return answers.map((answer)=> [question, answer]);
-		}`
-    };
-  }
   function createAnswererWrapperList(aw) {
     return aw.map(
       (item) => lib.h(
@@ -12266,6 +12356,8 @@ ${content}</tr>
             lib.h("li", ["名字	", item.name]),
             lib.h("li", { innerHTML: `官网	<a target="_blank" href=${item.homepage}>${item.homepage || "无"}</a>` }),
             lib.h("li", ["接口	", item.url]),
+            lib.h("li", ["接口类型	", getAnswererWrapperApiType(item)]),
+            lib.h("li", ["模型	", getAnswererWrapperModel(item)]),
             lib.h("li", ["请求方法	", item.method]),
             lib.h("li", ["请求类型	", item.type]),
             lib.h("li", ["请求头	", JSON.stringify(item.headers, null, 4) || "无"]),
@@ -12277,6 +12369,21 @@ ${content}</tr>
         }
       )
     );
+  }
+  function getAnswererWrapperApiType(item) {
+    const url = item.url || "";
+    if (/responses\/?$/i.test(url)) {
+      return "Responses API";
+    }
+    if (/chat\/completions\/?$/i.test(url)) {
+      return "Chat Completions";
+    }
+    return "通用题库 API";
+  }
+  function getAnswererWrapperModel(item) {
+    const data = item.data;
+    const model = data == null ? void 0 : data.model;
+    return typeof model === "string" && model ? model : "无";
   }
   const createGuide = () => {
     const showProjectDetails = (project2) => {

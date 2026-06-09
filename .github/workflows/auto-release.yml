@@ -6,7 +6,7 @@ name: Userscript Auto Releases
 on:
   push:
     tags:
-      - "*"
+      - '*'
 
 jobs:
   build:
@@ -17,11 +17,19 @@ jobs:
       matrix:
         node-version: [18.x]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
       - name: Setup env
         run: |
           echo 'BUILD_PATH="../release"' > ./scripts/.env 
@@ -30,15 +38,23 @@ jobs:
           echo "BUILDTIME=$(TZ=Asia/Shanghai date)" >> $GITHUB_ENV
           VERSION=$(jq -r .version package.json)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "DOWNLOAD_URL=https://github.com/ocsjs/ocsjs/releases/download/$VERSION/" >> $GITHUB_ENV
+          echo "DOWNLOAD_URL=https://github.com/winter-maple/ocs-ai-answerer/releases/download/$VERSION/" >> $GITHUB_ENV
+
       - name: Install Dependencies
-        run: |
-          npm install pnpm -g
-          pnpm install -w
-          cd packages/scripts
-          pnpm install
-          cd ../../
-          npm run tsc
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Quick API
+        run: npm run test:quick-api
+
+      - name: Typecheck core
+        run: npm run typecheck:core
+
+      - name: Typecheck scripts
+        run: npm run typecheck:scripts
+
+      - name: Lint
+        run: npm run lint:check
+
       - name: Build ocs scripts
         run: npm run build
 
@@ -88,6 +104,6 @@ jobs:
       - name: Create release
         uses: ncipollo/release-action@v1
         with:
-          artifactContentType: "html/text"
-          artifacts: "./release/ocs.user.js,./release/ocs.common.user.js,./release/core.js,./release/index.js,./CHANGELOG_SIMPLIFIED.md"
-          bodyFile: "./release.txt"
+          artifactContentType: 'html/text'
+          artifacts: './release/ocs.user.js,./release/ocs.common.user.js,./release/core.js,./release/index.js,./CHANGELOG_SIMPLIFIED.md'
+          bodyFile: './release.txt'
