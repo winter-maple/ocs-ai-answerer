@@ -113,6 +113,12 @@ async function resolve(type, answer, optionTexts, answerMatchMode = 'exact') {
 	}
 
 	{
+		const { result, selected } = await resolve('single', 'A/C because unsure', ['Alpha', 'Beta', 'Gamma', 'Delta']);
+		assert.strictEqual(result.finish, false);
+		assert.deepStrictEqual(selected, []);
+	}
+
+	{
 		const { result, selected } = await resolve('multiple', 'A,E', ['Alpha', 'Beta', 'Gamma', 'Delta']);
 		assert.strictEqual(result.finish, false);
 		assert.deepStrictEqual(selected, []);

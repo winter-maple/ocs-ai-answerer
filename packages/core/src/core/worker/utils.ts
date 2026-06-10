@@ -102,6 +102,10 @@ export function resolveOptionLetters(
 	} else if (/^[A-Z](?:[\s,，、;；/|#&+]+[A-Z])+[\s,，、;；/|#&+]*$/.test(text)) {
 		letters = text.match(/[A-Z]/g);
 	} else if (options?.allowLeadingLetterWithText && /^[A-Z](?:\s|$|[.．、,，;；:：)）\]】/])/.test(text)) {
+		const remaining = text.slice(1).trimStart();
+		if (/^[,，、;；/|#&+]+\s*[A-Z](?:$|[\s,，、;；/|#&+])/.test(remaining)) {
+			return undefined;
+		}
 		letters = [text[0]];
 	}
 
