@@ -21,6 +21,7 @@
 		"test:quick-api:smoke": "node ./scripts/test-quick-api-smoke.js",
 		"test:security-stability": "node ./scripts/test-security-stability.js",
 		"test:config-notification": "node ./scripts/test-config-notification.js",
+		"test:answer-match": "node ./scripts/test-answer-match.js",
 		"typecheck:core": "tsc -p ./packages/core/tsconfig.json --noEmit --pretty false",
 		"typecheck:scripts": "tsc -p ./packages/scripts/tsconfig.json --noEmit --pretty false",
 		"release": "sh ./scripts/release.sh",

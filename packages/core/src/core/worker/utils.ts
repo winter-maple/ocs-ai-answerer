@@ -61,6 +61,78 @@ export function resolvePlainAnswer(answer: string) {
 	}
 }
 
+export function normalizeAnswerText(answer: string) {
+	let text = String(answer || '')
+		.trim()
+		.replace(/[Ａ-Ｚａ-ｚ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 65248))
+		.toUpperCase();
+
+	for (let i = 0; i < 3; i++) {
+		const next = text
+			.replace(/^[\s"'`“”‘’【】[\]（）()]+/, '')
+			.replace(/^(?:正确答案|参考答案|答案是|答案为|答案|选项|选择|应选|应该选|为|是)\s*/i, '')
+			.replace(/^[:：=.-]+\s*/, '')
+			.trim();
+		if (next === text) {
+			break;
+		}
+		text = next;
+	}
+
+	return text.trim();
+}
+
+export function resolveOptionLetters(
+	answer: string,
+	optionCount: number,
+	options?: { expectedCount?: number; allowLeadingLetterWithText?: boolean }
+) {
+	if (optionCount <= 0 || optionCount > 26) {
+		return undefined;
+	}
+
+	const text = normalizeAnswerText(answer).replace(/^[([{（【\s]+|[)\]}）】\s]+$/g, '');
+	if (!text) {
+		return undefined;
+	}
+
+	let letters: string[] | null = null;
+	if (/^[A-Z]+$/.test(text)) {
+		letters = text.split('');
+	} else if (/^[A-Z](?:[\s,，、;；/|#&+]+[A-Z])+[\s,，、;；/|#&+]*$/.test(text)) {
+		letters = text.match(/[A-Z]/g);
+	} else if (options?.allowLeadingLetterWithText && /^[A-Z](?:\s|$|[.．、,，;；:：)）\]】/])/.test(text)) {
+		const remaining = text.slice(1).trimStart();
+		if (/^[,，、;；/|#&+]+\s*[A-Z](?:$|[\s,，、;；/|#&+])/.test(remaining)) {
+			return undefined;
+		}
+		letters = [text[0]];
+	}
+
+	if (!letters?.length) {
+		return undefined;
+	}
+
+	const indexes: number[] = [];
+	const seen = new Set<number>();
+	for (const letter of letters) {
+		const index = letter.charCodeAt(0) - 65;
+		if (index < 0 || index >= optionCount) {
+			return undefined;
+		}
+		if (!seen.has(index)) {
+			seen.add(index);
+			indexes.push(index);
+		}
+	}
+
+	if (options?.expectedCount !== undefined && indexes.length !== options.expectedCount) {
+		return undefined;
+	}
+
+	return indexes;
+}
+
 /** 分割答案 */
 export function splitAnswer(answer: string, separators = ['===', '#', '---', '###', '|', ';', '；']) {
 	answer = answer.trim();

@@ -1,7 +1,6 @@
 import { QuestionResolver, WorkContext } from './interface';
-import { resolvePlainAnswer, splitAnswer } from './utils';
+import { resolveOptionLetters, splitAnswer } from './utils';
 import { answerSimilar, removeRedundant, clearString, answerExactMatch } from '../utils/string';
-import { StringUtils } from '../../utils/string';
 import { Rating } from 'string-similarity';
 
 /** 默认答案题目处理器 */
@@ -57,14 +56,14 @@ export function createDefaultQuestionResolver<E>(
 			// 是否为纯ABCD答案
 			for (const info of infos) {
 				for (const res of info.results) {
-					const ans = StringUtils.nowrap(res.answer, '').trim();
-					if (ans.length === 1 && /[A-Z]/.test(ans)) {
-						const index = ans.charCodeAt(0) - 65;
-						if (options[index] === undefined) {
-							continue;
-						}
-						await handler('single', options[index].innerText, options[index], ctx);
-						return { finish: true, option: options[index] };
+					const indexes = resolveOptionLetters(res.answer, options.length, {
+						expectedCount: 1,
+						allowLeadingLetterWithText: true
+					});
+					if (indexes) {
+						const option = options[indexes[0]];
+						await handler('single', option.innerText, option, ctx);
+						return { finish: true, option };
 					}
 				}
 			}
@@ -202,14 +201,9 @@ export function createDefaultQuestionResolver<E>(
 			const plainOptions = [];
 			// 纯ABCD答案
 			for (const result of results) {
-				const ans = StringUtils.nowrap(result.answer, '').trim();
-				const plainAnswer = resolvePlainAnswer(ans);
-				if (plainAnswer) {
-					for (const char of ans) {
-						const index = char.charCodeAt(0) - 65;
-						if (options[index] === undefined) {
-							continue;
-						}
+				const indexes = resolveOptionLetters(result.answer, options.length);
+				if (indexes) {
+					for (const index of indexes) {
 						await handler('multiple', options[index].innerText, options[index], ctx);
 						plainOptions.push(options[index]);
 					}
